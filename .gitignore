@@ -1,0 +1,157 @@
+# =========================
+# MODEL WEIGHTS - CRITICAL!
+# =========================
+# These files can be 4-80GB - NEVER commit them!
+*.safetensors
+*.pt
+*.pth
+*.bin
+*.gguf
+*.ggml
+*.h5
+*.onnx
+*.tflite
+model_adapters/*
+!model_adapters/.gitkeep
+checkpoints/
+outputs/
+
+# =========================
+# DATASETS - CRITICAL!
+# =========================
+# Raw and processed data can be massive
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+*.jsonl
+*.json
+!configs/*.json
+!configs/*.yaml
+*.csv
+*.parquet
+*.arrow
+*.pkl
+*.pickle
+
+# =========================
+# TRAINING ARTIFACTS
+# =========================
+# TensorBoard logs, wandb, etc.
+data/training_logs/*
+!data/training_logs/.gitkeep
+wandb/
+runs/
+lightning_logs/
+mlruns/
+
+# =========================
+# PYTHON
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.conda/
+
+# =========================
+# IDE & EDITOR
+# =========================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.spyderproject
+.spyproject
+
+# =========================
+# JUPYTER
+# =========================
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+notebooks/.ipynb_checkpoints/
+
+# =========================
+# SECRETS & CREDENTIALS
+# =========================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets.yaml
+secrets.json
+credentials.json
+token.txt
+hf_token.txt
+
+# =========================
+# OS SPECIFIC
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# =========================
+# TEMPORARY FILES
+# =========================
+*.tmp
+*.temp
+*.log
+*.cache
+.cache/
+tmp/
+temp/
+
+# =========================
+# HUGGINGFACE
+# =========================
+.huggingface/
+hub/
+
+# =========================
+# LLAMA.CPP BUILD
+# =========================
+llama.cpp/
+*.o
+*.a
+
+# =========================
+# LARGE DOWNLOADS
+# =========================
+*.tar.gz
+*.tar.bz2
+*.zip
+*.7z
+*.rar
+downloads/

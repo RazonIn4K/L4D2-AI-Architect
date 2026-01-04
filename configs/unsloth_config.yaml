@@ -1,0 +1,116 @@
+# L4D2-AI-Architect: Unsloth Training Configuration
+# 
+# This configuration is optimized for Vultr A40/L40S instances
+# with 48GB VRAM. Adjust batch_size for different GPUs:
+#   - A100 80GB: batch_size=8, gradient_accumulation=2
+#   - A40 48GB: batch_size=4, gradient_accumulation=4
+#   - L40S 48GB: batch_size=4, gradient_accumulation=4
+#   - RTX 4090 24GB: batch_size=2, gradient_accumulation=8
+
+model:
+  # Base model selection
+  # Options:
+  #   - unsloth/mistral-7b-instruct-v0.3-bnb-4bit (recommended)
+  #   - unsloth/codellama-7b-bnb-4bit (code-focused)
+  #   - unsloth/llama-3-8b-bnb-4bit (newer architecture)
+  name: "unsloth/mistral-7b-instruct-v0.3-bnb-4bit"
+  
+  # Sequence length (higher = more context, more VRAM)
+  max_seq_length: 2048
+  
+  # Data type (null = auto-detect: float16 for T4/V100, bfloat16 for Ampere+)
+  dtype: null
+  
+  # 4-bit quantization for memory efficiency
+  load_in_4bit: true
+
+lora:
+  # LoRA rank (higher = more capacity, more VRAM)
+  # Recommended: 16-64 for fine-tuning, 8 for quick experiments
+  r: 32
+  
+  # Alpha scaling (typically r or r*2)
+  lora_alpha: 64
+  
+  # Dropout (0 is optimized for Unsloth)
+  lora_dropout: 0
+  
+  # Target modules for LoRA
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  
+  # Bias training
+  bias: "none"
+  
+  # Gradient checkpointing (saves VRAM)
+  use_gradient_checkpointing: "unsloth"
+  
+  # RSLoRA for improved training stability
+  use_rslora: false
+
+training:
+  # Number of epochs (2-3 recommended, more causes overfitting)
+  num_train_epochs: 3
+  
+  # Batch size per GPU
+  per_device_train_batch_size: 4
+  
+  # Gradient accumulation (effective batch = batch_size * accumulation)
+  gradient_accumulation_steps: 4
+  
+  # Learning rate (2e-4 is standard for QLoRA)
+  learning_rate: 2.0e-4
+  
+  # Weight decay for regularization
+  weight_decay: 0.01
+  
+  # Warmup steps
+  warmup_steps: 10
+  
+  # Learning rate scheduler
+  lr_scheduler_type: "linear"
+  
+  # Optimizer (adamw_8bit saves VRAM)
+  optim: "adamw_8bit"
+  
+  # Precision (use bf16 for Ampere+, fp16 for older GPUs)
+  fp16: false
+  bf16: true
+  
+  # Logging frequency
+  logging_steps: 10
+  
+  # Checkpoint frequency
+  save_steps: 100
+  
+  # Maximum checkpoints to keep
+  save_total_limit: 3
+  
+  # Random seed for reproducibility
+  seed: 3407
+
+data:
+  # Training dataset (relative to data/processed/)
+  train_file: "combined_train.jsonl"
+  
+  # Validation dataset
+  val_file: "combined_val.jsonl"
+  
+  # Maximum samples (null = use all)
+  max_samples: null
+
+output:
+  # Output directory name (in model_adapters/)
+  dir: "l4d2-code-lora"
+  
+  # Push to HuggingFace Hub
+  push_to_hub: false
+  
+  # Hub model ID (required if push_to_hub is true)
+  hub_model_id: null
