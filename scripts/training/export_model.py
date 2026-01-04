@@ -22,13 +22,17 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, List
 
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_path, safe_write_text
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.resolve()
 OUTPUT_DIR = PROJECT_ROOT / "model_adapters"
 
 # GGUF quantization options (from llama.cpp)
@@ -217,10 +221,13 @@ Fine-tuned for Left 4 Dead 2 modding
 """
 '''
     
-    modelfile_path = model_path / "Modelfile"
-    with open(modelfile_path, "w") as f:
-        f.write(modelfile_content)
-    
+    # Use safe_write_text to combine path validation and file writing
+    modelfile_path = safe_write_text(
+        str(model_path / "Modelfile"),
+        modelfile_content,
+        PROJECT_ROOT
+    )
+
     logger.info(f"Ollama Modelfile created at {modelfile_path}")
     logger.info(f"To use with Ollama:")
     logger.info(f"  cd {model_path}")
@@ -303,31 +310,33 @@ def main():
     
     if not check_unsloth():
         sys.exit(1)
-    
-    input_path = Path(args.input)
+
+    # Validate input path
+    input_path = safe_path(args.input, PROJECT_ROOT)
     if not input_path.exists():
         logger.error(f"Input path not found: {input_path}")
         sys.exit(1)
-    
-    output_path = Path(args.output) if args.output else input_path / "export"
-    
+
+    # Validate output path
+    output_path = safe_path(args.output, PROJECT_ROOT, create_parents=True) if args.output else input_path / "export"
+
     # Export based on format
     if args.format in ["gguf", "all"]:
-        gguf_output = output_path / "gguf"
+        gguf_output = safe_path(str(output_path / "gguf"), PROJECT_ROOT, create_parents=True)
         export_to_gguf_unsloth(input_path, gguf_output, args.quantize)
-        
+
         if args.create_modelfile or args.install_ollama:
             create_ollama_modelfile(gguf_output, args.install_ollama or "l4d2-code")
-        
+
         if args.install_ollama:
             install_to_ollama(gguf_output, args.install_ollama)
-    
+
     if args.format in ["merged", "all"]:
-        merged_output = output_path / "merged"
+        merged_output = safe_path(str(output_path / "merged"), PROJECT_ROOT, create_parents=True)
         export_merged_model(input_path, merged_output, args.push_to_hub)
-    
+
     if args.format in ["lora", "all"]:
-        lora_output = output_path / "lora"
+        lora_output = safe_path(str(output_path / "lora"), PROJECT_ROOT, create_parents=True)
         export_lora_only(input_path, lora_output, args.push_to_hub)
     
     logger.info("Export complete!")

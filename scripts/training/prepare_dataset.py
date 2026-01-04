@@ -9,7 +9,6 @@ Usage:
     python prepare_dataset.py --input data/raw --output data/processed
 """
 
-import os
 import sys
 import json
 import re
@@ -20,6 +19,10 @@ from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 from collections import defaultdict
+
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_path, safe_write_json, safe_write_jsonl
 
 # Configure logging
 logging.basicConfig(
@@ -303,7 +306,7 @@ def create_training_examples_from_wiki(data: List[Dict]) -> List[TrainingExample
             if "Director" in title:
                 instruction = f"Write VScript code for: {title}"
             elif "Example" in title:
-                instruction = f"Implement the following L4D2 script example"
+                instruction = "Implement the following L4D2 script example"
             else:
                 instruction = generate_instruction_from_code(code, language)
                 if not instruction:
@@ -361,15 +364,11 @@ def split_dataset(data: List[Dict], train_ratio: float = 0.9) -> Tuple[List[Dict
     return data[:split_idx], data[split_idx:]
 
 
-def save_dataset(data: List[Dict], output_path: Path, format_name: str) -> None:
-    """Save dataset to JSONL file."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    with open(output_path, "w", encoding="utf-8") as f:
-        for item in data:
-            f.write(json.dumps(item, ensure_ascii=False) + "\n")
-    
-    logger.info(f"Saved {len(data)} examples to {output_path}")
+def save_dataset(data: List[Dict], output_path: Path, base_dir: Path) -> None:
+    """Save dataset to JSONL file with path traversal protection."""
+    # Use safe_write_jsonl which combines path validation and file writing
+    safe_output = safe_write_jsonl(str(output_path), data, base_dir)
+    logger.info(f"Saved {len(data)} examples to {safe_output}")
 
 
 def main():
@@ -387,9 +386,11 @@ def main():
                         help="Training set ratio")
     
     args = parser.parse_args()
-    
-    raw_dir = Path(args.input)
-    output_dir = Path(args.output)
+
+    # Validate paths to prevent path traversal
+    project_root = Path(__file__).parent.parent.parent
+    raw_dir = safe_path(args.input, project_root)
+    output_dir = safe_path(args.output, project_root, create_parents=True)
     
     # Load raw data
     logger.info("Loading raw data...")
@@ -423,27 +424,27 @@ def main():
         if sourcepawn_examples:
             sp_formatted = format_for_unsloth(sourcepawn_examples, "sourcepawn")
             sp_train, sp_val = split_dataset(sp_formatted, args.train_ratio)
-            save_dataset(sp_train, output_dir / "sourcepawn_train.jsonl", "unsloth")
-            save_dataset(sp_val, output_dir / "sourcepawn_val.jsonl", "unsloth")
-        
+            save_dataset(sp_train, output_dir / "sourcepawn_train.jsonl", project_root)
+            save_dataset(sp_val, output_dir / "sourcepawn_val.jsonl", project_root)
+
         # VScript dataset
         if vscript_examples:
             vs_formatted = format_for_unsloth(vscript_examples, "vscript")
             vs_train, vs_val = split_dataset(vs_formatted, args.train_ratio)
-            save_dataset(vs_train, output_dir / "vscript_train.jsonl", "unsloth")
-            save_dataset(vs_val, output_dir / "vscript_val.jsonl", "unsloth")
-        
+            save_dataset(vs_train, output_dir / "vscript_train.jsonl", project_root)
+            save_dataset(vs_val, output_dir / "vscript_val.jsonl", project_root)
+
         # Combined dataset
         all_formatted = format_for_unsloth(examples, "sourcepawn")
         all_train, all_val = split_dataset(all_formatted, args.train_ratio)
-        save_dataset(all_train, output_dir / "combined_train.jsonl", "unsloth")
-        save_dataset(all_val, output_dir / "combined_val.jsonl", "unsloth")
-    
+        save_dataset(all_train, output_dir / "combined_train.jsonl", project_root)
+        save_dataset(all_val, output_dir / "combined_val.jsonl", project_root)
+
     if args.format in ["alpaca", "both"]:
         alpaca_formatted = format_for_alpaca(examples)
         alpaca_train, alpaca_val = split_dataset(alpaca_formatted, args.train_ratio)
-        save_dataset(alpaca_train, output_dir / "alpaca_train.jsonl", "alpaca")
-        save_dataset(alpaca_val, output_dir / "alpaca_val.jsonl", "alpaca")
+        save_dataset(alpaca_train, output_dir / "alpaca_train.jsonl", project_root)
+        save_dataset(alpaca_val, output_dir / "alpaca_val.jsonl", project_root)
     
     # Save statistics
     stats = {
@@ -457,10 +458,13 @@ def main():
     for ex in examples:
         source_type = ex.source.split(":")[0] if ":" in ex.source else "github"
         stats["sources"][source_type] = stats["sources"].get(source_type, 0) + 1
-    
-    stats_path = output_dir / "dataset_stats.json"
-    with open(stats_path, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2)
+
+    # Save statistics using safe_write_json
+    safe_write_json(
+        str(output_dir / "dataset_stats.json"),
+        stats,
+        project_root
+    )
     
     logger.info("=" * 50)
     logger.info("DATASET PREPARATION COMPLETE")

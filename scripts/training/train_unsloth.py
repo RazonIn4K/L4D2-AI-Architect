@@ -20,6 +20,10 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, Dict, Any
 
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_path, safe_read_yaml, safe_write_json
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -32,6 +36,16 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent
 CONFIG_DIR = PROJECT_ROOT / "configs"
 DATA_DIR = PROJECT_ROOT / "data" / "processed"
 OUTPUT_DIR = PROJECT_ROOT / "model_adapters"
+
+def _resolve_data_path(path_str: str) -> Path:
+    candidate = Path(path_str)
+    if candidate.is_absolute():
+        return safe_path(str(candidate), PROJECT_ROOT)
+    return safe_path(str(DATA_DIR / candidate), PROJECT_ROOT)
+
+
+def _resolve_output_dir(dir_name: str) -> Path:
+    return safe_path(str(OUTPUT_DIR / dir_name), PROJECT_ROOT, create_parents=True)
 
 
 def check_dependencies():
@@ -63,10 +77,10 @@ def check_dependencies():
 
 
 def load_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
-    """Load training configuration from YAML file."""
+    """Load training configuration from YAML file with path validation."""
     if config_path and config_path.exists():
-        with open(config_path, "r") as f:
-            config = yaml.safe_load(f)
+        # Use safe_read_yaml which combines path validation and YAML loading
+        config = safe_read_yaml(str(config_path), PROJECT_ROOT)
         logger.info(f"Loaded config from {config_path}")
         return config
     
@@ -208,20 +222,21 @@ def train(config: Dict[str, Any], resume_from: Optional[str] = None):
     
     # Load datasets
     data_config = config["data"]
+    train_path = _resolve_data_path(data_config["train_file"])
     train_dataset = load_dataset_from_jsonl(
-        DATA_DIR / data_config["train_file"],
+        train_path,
         tokenizer,
         data_config.get("max_samples")
     )
     
     val_dataset = None
     if data_config.get("val_file"):
-        val_path = DATA_DIR / data_config["val_file"]
+        val_path = _resolve_data_path(data_config["val_file"])
         if val_path.exists():
             val_dataset = load_dataset_from_jsonl(val_path, tokenizer)
     
     # Output directory
-    output_dir = OUTPUT_DIR / config["output"]["dir"]
+    output_dir = _resolve_output_dir(config["output"]["dir"])
     output_dir.mkdir(parents=True, exist_ok=True)
     
     # Training arguments
@@ -297,9 +312,13 @@ def train(config: Dict[str, Any], resume_from: Optional[str] = None):
         "val_samples": len(val_dataset) if val_dataset else 0,
         "completed_at": datetime.now().isoformat(),
     }
-    
-    with open(output_dir / "training_info.json", "w") as f:
-        json.dump(info, f, indent=2)
+
+    # Save training info using safe_write_json
+    safe_write_json(
+        str(output_dir / "training_info.json"),
+        info,
+        PROJECT_ROOT
+    )
     
     logger.info(f"Model saved to {output_dir}")
     return output_dir

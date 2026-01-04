@@ -182,7 +182,7 @@ After=network.target
 Type=simple
 User=root
 WorkingDirectory=/root/L4D2-AI-Architect
-ExecStart=/root/L4D2-AI-Architect/venv/bin/tensorboard --logdir=data/training_logs --host=0.0.0.0 --port=6006
+ExecStart=/root/L4D2-AI-Architect/venv/bin/tensorboard --logdir=data/training_logs --host=127.0.0.1 --port=6006
 Restart=always
 
 [Install]

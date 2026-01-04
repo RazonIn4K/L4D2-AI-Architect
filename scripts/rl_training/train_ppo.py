@@ -28,6 +28,10 @@ from typing import Optional, Dict, Any, List, Callable
 
 import numpy as np
 
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_path, safe_write_json
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -37,6 +41,17 @@ logger = logging.getLogger(__name__)
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 MODELS_DIR = PROJECT_ROOT / "model_adapters" / "rl_agents"
 LOGS_DIR = PROJECT_ROOT / "data" / "training_logs" / "rl"
+
+
+def _resolve_path_within_root(path: Path, root: Path) -> Path:
+    root_resolved = root.resolve()
+    candidate = path.expanduser()
+    if not candidate.is_absolute():
+        candidate = root_resolved / candidate
+    resolved = candidate.resolve()
+    if not resolved.is_relative_to(root_resolved):
+        raise ValueError(f"Refusing path outside project root: {resolved}")
+    return resolved
 
 
 def install_dependencies():
@@ -231,17 +246,21 @@ def train(
 ):
     """Main training function."""
     
-    # Setup directories
+    # Setup directories with path validation
+    project_root = Path(__file__).parent.parent.parent.resolve()
     if save_path is None:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         save_path = MODELS_DIR / f"ppo_{personality}_{timestamp}"
-    save_path = Path(save_path)
+    save_path = _resolve_path_within_root(Path(save_path), PROJECT_ROOT)
     save_path.mkdir(parents=True, exist_ok=True)
     
     if log_dir is None:
         log_dir = LOGS_DIR / save_path.name
-    log_dir = Path(log_dir)
+    log_dir = _resolve_path_within_root(Path(log_dir), PROJECT_ROOT)
     log_dir.mkdir(parents=True, exist_ok=True)
+
+    if resume_from is not None:
+        resume_from = _resolve_path_within_root(Path(resume_from), PROJECT_ROOT)
     
     logger.info(f"Training PPO agent with '{personality}' personality")
     logger.info(f"Model save path: {save_path}")
@@ -319,9 +338,12 @@ def train(
         "completed_at": datetime.now().isoformat(),
     }
     
-    import json
-    with open(save_path / "training_info.json", "w") as f:
-        json.dump(info, f, indent=2)
+    # Use safe_write_json to combine path validation and file writing
+    safe_write_json(
+        str(save_path / "training_info.json"),
+        info,
+        PROJECT_ROOT
+    )
     
     # Cleanup
     train_env.close()
@@ -337,6 +359,7 @@ def evaluate(
     render: bool = False,
 ):
     """Evaluate a trained model."""
+    model_path = _resolve_path_within_root(model_path, PROJECT_ROOT)
     logger.info(f"Loading model from {model_path}")
     
     env = MnemosyneEnv(render_mode="human" if render else None)
@@ -360,6 +383,7 @@ def evaluate(
 
 def demo(model_path: Path, personality: str = "balanced"):
     """Run a demo of the trained agent."""
+    model_path = _resolve_path_within_root(model_path, PROJECT_ROOT)
     logger.info(f"Loading model from {model_path}")
     
     env = MnemosyneEnv(render_mode="human")
@@ -438,37 +462,41 @@ def main():
                         help="Render during evaluation")
     
     args = parser.parse_args()
-    
-    if args.mode == "train":
-        train(
-            total_timesteps=args.timesteps,
-            n_envs=args.n_envs,
-            personality=args.personality,
-            save_path=Path(args.save_path) if args.save_path else None,
-            resume_from=Path(args.resume) if args.resume else None,
-            host=args.host,
-            base_port=args.port,
-        )
-    
-    elif args.mode == "eval":
-        if not args.model:
-            logger.error("--model required for evaluation")
-            sys.exit(1)
-        evaluate(
-            model_path=Path(args.model),
-            n_episodes=args.eval_episodes,
-            personality=args.personality,
-            render=args.render,
-        )
-    
-    elif args.mode == "demo":
-        if not args.model:
-            logger.error("--model required for demo")
-            sys.exit(1)
-        demo(
-            model_path=Path(args.model),
-            personality=args.personality,
-        )
+
+    try:
+        if args.mode == "train":
+            train(
+                total_timesteps=args.timesteps,
+                n_envs=args.n_envs,
+                personality=args.personality,
+                save_path=Path(args.save_path) if args.save_path else None,
+                resume_from=Path(args.resume) if args.resume else None,
+                host=args.host,
+                base_port=args.port,
+            )
+
+        elif args.mode == "eval":
+            if not args.model:
+                logger.error("--model required for evaluation")
+                sys.exit(1)
+            evaluate(
+                model_path=Path(args.model),
+                n_episodes=args.eval_episodes,
+                personality=args.personality,
+                render=args.render,
+            )
+
+        elif args.mode == "demo":
+            if not args.model:
+                logger.error("--model required for demo")
+                sys.exit(1)
+            demo(
+                model_path=Path(args.model),
+                personality=args.personality,
+            )
+    except ValueError as e:
+        logger.error(str(e))
+        sys.exit(2)
 
 
 if __name__ == "__main__":

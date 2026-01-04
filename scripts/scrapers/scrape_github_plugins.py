@@ -18,7 +18,7 @@ import argparse
 import logging
 from pathlib import Path
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set
 from dataclasses import dataclass, asdict
 
 try:
@@ -27,6 +27,17 @@ except ImportError:
     print("Installing requests...")
     os.system(f"{sys.executable} -m pip install requests")
     import requests
+
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_path, validate_url, safe_write_json, safe_write_jsonl
+
+# Allowed domains for GitHub API calls (SSRF prevention)
+GITHUB_ALLOWED_DOMAINS: Set[str] = {
+    "api.github.com",
+    "raw.githubusercontent.com",
+    "github.com",
+}
 
 # Configure logging
 logging.basicConfig(
@@ -111,9 +122,12 @@ class GitHubScraper:
             logger.info(f"Rate limit low: {remaining} remaining")
     
     def _make_request(self, url: str, params: Optional[Dict] = None) -> Optional[Dict]:
-        """Make a rate-limit-aware request."""
+        """Make a rate-limit-aware request with SSRF protection."""
         try:
-            response = self.session.get(url, params=params, timeout=30)
+            # Validate URL to prevent SSRF attacks
+            validated_url = validate_url(url, GITHUB_ALLOWED_DOMAINS)
+            response = self.session.get(validated_url, params=params, timeout=30)
+            validate_url(response.url, GITHUB_ALLOWED_DOMAINS)
             self._check_rate_limit(response)
             
             if response.status_code == 200:
@@ -136,9 +150,14 @@ class GitHubScraper:
     
     def search_repositories(self, topic: str, max_repos: int = 100) -> List[Dict]:
         """Search for repositories by topic."""
+        max_repos = int(max_repos)
+        if max_repos < 1:
+            return []
+        max_repos = min(max_repos, 5000)
+
         repos = []
         page = 1
-        per_page = min(100, max_repos)
+        per_page = 100
         
         while len(repos) < max_repos:
             url = f"{GITHUB_API_BASE}/search/repositories"
@@ -268,13 +287,19 @@ class GitHubScraper:
     
     def run(self, max_repos: int = 500) -> List[CodeFile]:
         """Run the full scraping process."""
+        max_repos = int(max_repos)
+        if max_repos < 1:
+            return []
+        max_repos = min(max_repos, 5000)
+
         all_repos = []
         seen_repos = set()
         
         # Search all topics
         for topic in SEARCH_TOPICS:
             logger.info(f"Searching topic: {topic}")
-            repos = self.search_repositories(topic, max_repos // len(SEARCH_TOPICS))
+            per_topic_max = max(1, max_repos // len(SEARCH_TOPICS))
+            repos = self.search_repositories(topic, per_topic_max)
             
             for repo in repos:
                 if repo["full_name"] not in seen_repos:
@@ -304,20 +329,21 @@ class GitHubScraper:
         return all_files
 
 
-def save_results(files: List[CodeFile], output_dir: Path) -> None:
-    """Save collected files to disk."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save as JSONL (one file per line)
-    jsonl_path = output_dir / "github_plugins.jsonl"
-    with open(jsonl_path, "w", encoding="utf-8") as f:
-        for code_file in files:
-            f.write(json.dumps(asdict(code_file), ensure_ascii=False) + "\n")
-    
+def save_results(files: List[CodeFile], output_dir: Path, project_root: Path) -> None:
+    """Save collected files to disk with path traversal protection."""
+    # Validate output directory
+    safe_output_dir = safe_path(str(output_dir), project_root, create_parents=True)
+
+    # Save as JSONL using safe_write_jsonl (combines path validation and file writing)
+    jsonl_items = [asdict(code_file) for code_file in files]
+    jsonl_path = safe_write_jsonl(
+        str(safe_output_dir / "github_plugins.jsonl"),
+        jsonl_items,
+        project_root
+    )
     logger.info(f"Saved {len(files)} files to {jsonl_path}")
-    
-    # Save statistics
-    stats_path = output_dir / "scrape_stats.json"
+
+    # Build statistics
     stats = {
         "total_files": len(files),
         "total_bytes": sum(len(f.content) for f in files),
@@ -325,21 +351,24 @@ def save_results(files: List[CodeFile], output_dir: Path) -> None:
         "by_language": {},
         "top_repos": [],
     }
-    
+
     for f in files:
         stats["by_extension"][f.extension] = stats["by_extension"].get(f.extension, 0) + 1
         stats["by_language"][f.language] = stats["by_language"].get(f.language, 0) + 1
-    
+
     # Top repos by file count
     repo_counts = {}
     for f in files:
         repo_counts[f.repo_name] = repo_counts.get(f.repo_name, 0) + 1
-    
+
     stats["top_repos"] = sorted(repo_counts.items(), key=lambda x: x[1], reverse=True)[:20]
-    
-    with open(stats_path, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2)
-    
+
+    # Save statistics using safe_write_json (combines path validation and file writing)
+    stats_path = safe_write_json(
+        str(safe_output_dir / "scrape_stats.json"),
+        stats,
+        project_root
+    )
     logger.info(f"Saved statistics to {stats_path}")
 
 
@@ -365,11 +394,22 @@ def main():
     logger.info("Starting GitHub scrape...")
     start_time = time.time()
     
-    files = scraper.run(max_repos=args.max_repos)
-    
-    # Save results
-    output_dir = Path(args.output)
-    save_results(files, output_dir)
+    try:
+        max_repos = int(args.max_repos)
+    except (TypeError, ValueError):
+        logger.error("Invalid --max-repos")
+        sys.exit(2)
+
+    if max_repos < 1 or max_repos > 5000:
+        logger.error("--max-repos must be between 1 and 5000")
+        sys.exit(2)
+
+    files = scraper.run(max_repos=max_repos)
+
+    # Save results with path validation
+    project_root = Path(__file__).parent.parent.parent
+    output_dir = safe_path(args.output, project_root, create_parents=True)
+    save_results(files, output_dir, project_root)
     
     # Print summary
     elapsed = time.time() - start_time

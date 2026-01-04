@@ -32,6 +32,15 @@ except ImportError:
     import requests
     from bs4 import BeautifulSoup
 
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_path, validate_url, safe_write_json, safe_write_jsonl
+
+# Allowed domains for Valve Wiki (SSRF prevention)
+WIKI_ALLOWED_DOMAINS: Set[str] = {
+    "developer.valvesoftware.com",
+}
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -245,9 +254,12 @@ class WikiScraper:
         
         self.visited.add(url)
         logger.info(f"Scraping: {url}")
-        
+
         try:
-            response = self.session.get(url, timeout=30)
+            # Validate URL to prevent SSRF attacks
+            validated_url = validate_url(url, WIKI_ALLOWED_DOMAINS)
+            response = self.session.get(validated_url, timeout=30)
+            validate_url(response.url, WIKI_ALLOWED_DOMAINS)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, "lxml")
@@ -297,6 +309,11 @@ class WikiScraper:
     
     def crawl(self, max_pages: int = 200) -> List[WikiPage]:
         """Crawl wiki starting from seed URLs."""
+        max_pages = int(max_pages)
+        if max_pages < 1:
+            return []
+        max_pages = min(max_pages, 5000)
+
         pages = []
         queue = [self._normalize_url(url) for url in SEED_URLS]
         
@@ -325,48 +342,56 @@ class WikiScraper:
         return pages
 
 
-def save_results(pages: List[WikiPage], output_dir: Path) -> None:
-    """Save scraped pages to disk."""
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Save as JSONL
-    jsonl_path = output_dir / "valve_wiki.jsonl"
-    with open(jsonl_path, "w", encoding="utf-8") as f:
-        for page in pages:
-            f.write(json.dumps(asdict(page), ensure_ascii=False) + "\n")
-    
+def save_results(pages: List[WikiPage], output_dir: Path, project_root: Path) -> None:
+    """Save scraped pages to disk with path traversal protection."""
+    # Validate output directory
+    safe_output_dir = safe_path(str(output_dir), project_root, create_parents=True)
+
+    # Save as JSONL using safe_write_jsonl
+    page_items = [asdict(page) for page in pages]
+    jsonl_path = safe_write_jsonl(
+        str(safe_output_dir / "valve_wiki.jsonl"),
+        page_items,
+        project_root
+    )
     logger.info(f"Saved {len(pages)} pages to {jsonl_path}")
-    
+
     # Save code blocks separately for easier processing
-    code_path = output_dir / "code_blocks.jsonl"
-    with open(code_path, "w", encoding="utf-8") as f:
-        for page in pages:
-            for code in page.code_blocks:
-                entry = {
-                    "source_url": page.url,
-                    "source_title": page.title,
-                    "code": code,
-                    "categories": page.categories,
-                }
-                f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    
+    code_items = []
+    for page in pages:
+        for code in page.code_blocks:
+            entry = {
+                "source_url": page.url,
+                "source_title": page.title,
+                "code": code,
+                "categories": page.categories,
+            }
+            code_items.append(entry)
+
+    code_path = safe_write_jsonl(
+        str(safe_output_dir / "code_blocks.jsonl"),
+        code_items,
+        project_root
+    )
     logger.info(f"Saved code blocks to {code_path}")
-    
-    # Save statistics
+
+    # Save statistics using safe_write_json
     stats = {
         "total_pages": len(pages),
         "total_code_blocks": sum(len(p.code_blocks) for p in pages),
         "total_sections": sum(len(p.sections) for p in pages),
         "pages_by_category": {},
     }
-    
+
     for page in pages:
         for cat in page.categories:
             stats["pages_by_category"][cat] = stats["pages_by_category"].get(cat, 0) + 1
-    
-    stats_path = output_dir / "scrape_stats.json"
-    with open(stats_path, "w", encoding="utf-8") as f:
-        json.dump(stats, f, indent=2)
+
+    safe_write_json(
+        str(safe_output_dir / "scrape_stats.json"),
+        stats,
+        project_root
+    )
 
 
 def main():
@@ -387,11 +412,22 @@ def main():
     logger.info("Starting Valve Wiki scrape...")
     start_time = time.time()
     
-    pages = scraper.crawl(max_pages=args.max_pages)
-    
-    # Save results
-    output_dir = Path(args.output)
-    save_results(pages, output_dir)
+    try:
+        max_pages = int(args.max_pages)
+    except (TypeError, ValueError):
+        logger.error("Invalid --max-pages")
+        sys.exit(2)
+
+    if max_pages < 1 or max_pages > 5000:
+        logger.error("--max-pages must be between 1 and 5000")
+        sys.exit(2)
+
+    pages = scraper.crawl(max_pages=max_pages)
+
+    # Save results with path validation
+    project_root = Path(__file__).parent.parent.parent
+    output_dir = safe_path(args.output, project_root, create_parents=True)
+    save_results(pages, output_dir, project_root)
     
     # Print summary
     elapsed = time.time() - start_time
