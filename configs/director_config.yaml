@@ -1,0 +1,111 @@
+# L4D2 AI Director Configuration
+# 
+# This file controls the AI Director's behavior and spawn rates
+
+# Spawn rate multipliers
+spawn_rates:
+  # Base spawn rate (spawns per second)
+  common_base: 1.0
+  # How much stress increases common spawns
+  common_multiplier: 0.1
+  # Base special infected spawn chance
+  special_base: 0.02
+  # How much stress increases special spawns
+  special_multiplier: 0.05
+  # Chance per second to spawn a witch
+  witch_chance: 0.001
+  # Chance per second to spawn a tank
+  tank_chance: 0.0005
+
+# Stress calculation factors
+stress_factors:
+  # Weight for low team health
+  low_health: 0.3
+  # Weight for active horde events
+  horde_active: 0.4
+  # Weight for special infected presence
+  special_active: 0.2
+  # Weight for item shortages
+  item_shortage: 0.1
+
+# Flow and item control
+flow_control:
+  # Minimum items per checkpoint
+  min_items_per_checkpoint: 4
+  # Maximum items per checkpoint
+  max_items_per_checkpoint: 8
+  # Ratio of items that should be health packs
+  health_pack_ratio: 0.3
+  # Ratio of items that should be throwables
+  throwable_ratio: 0.2
+
+# Difficulty settings
+difficulty:
+  # Base difficulty multiplier (0.5 = easy, 1.0 = normal, 2.0 = hard)
+  base_difficulty: 1.0
+  # Enable adaptive difficulty based on player performance
+  adaptive_scaling: true
+  # Time window to evaluate player performance (seconds)
+  player_performance_window: 300
+  # Difficulty increase per death
+  death_penalty: 0.1
+  # Difficulty decrease for fast progress
+  speed_bonus: 0.05
+
+# Event timing
+events:
+  # Minimum time between panic events (seconds)
+  min_panic_interval: 120
+  # Minimum time between tank spawns (seconds)
+  min_tank_interval: 300
+  # Minimum time between witch spawns (seconds)
+  min_witch_interval: 180
+  # Preferred flow positions for events (0-1)
+  panic_flow_range: [0.3, 0.7]
+  tank_flow_range: [0.5, 0.9]
+  witch_flow_range: [0.2, 0.8]
+
+# Special infected preferences
+special_preferences:
+  # Chance to spawn each special type (normalized)
+  smoker: 0.2
+  boomer: 0.2
+  hunter: 0.25
+  spitter: 0.15
+  jockey: 0.2
+  # Adjust based on situation
+  prefer_boomer_when_stressed: true
+  prefer_hunter_in_open: true
+  prefer_spitter_for_chokes: true
+
+# Item spawn preferences
+items:
+  # Chance to spawn each item type
+  medkit: 0.3
+  pills: 0.4
+  defibrillator: 0.1
+  molotov: 0.1
+  pipe_bomb: 0.1
+  # Spawn conditions
+  spawn_health_when_avg_below: 50
+  spawn_throwables_when_specials_above: 2
+  max_items_per_area: 3
+  min_distance_between_items: 500
+
+# Learning parameters (for RL mode)
+learning:
+  # Reward weights
+  reward_weights:
+    survivor_progress: 1.0
+    survivor_health: 0.5
+    stress_maintained: 0.3
+    deaths_penalty: -2.0
+    time_bonus: -0.1  # Encourage faster completion
+  # Exploration parameters
+  epsilon_start: 1.0
+  epsilon_end: 0.1
+  epsilon_decay: 10000
+  # Training parameters
+  learning_rate: 0.001
+  batch_size: 32
+  memory_size: 10000
