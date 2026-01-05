@@ -17,7 +17,7 @@ import base64
 import argparse
 import logging
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Set
 from dataclasses import dataclass, asdict
 
@@ -273,7 +273,7 @@ class GitHubScraper:
                 forks=repo_info.get("forks_count", 0),
                 description=repo_info.get("description"),
                 license=repo_info.get("license", {}).get("name") if repo_info.get("license") else None,
-                collected_at=datetime.utcnow().isoformat(),
+                collected_at=datetime.now(timezone.utc).isoformat(),
             )
             
             collected.append(code_file)

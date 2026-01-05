@@ -1,16 +1,9 @@
 #!/bin/bash
-#
 # Vultr GPU Instance Setup Script
-# 
-# Configures a fresh Vultr GPU instance for L4D2-AI-Architect training.
-# Supports A100, A40, and L40S instances.
+# For A40/L40S/A100 instances running Ubuntu 22.04
 #
-# Usage:
-#   chmod +x vultr_setup.sh
-#   ./vultr_setup.sh
-#
-# Note: Run as root on a fresh Vultr instance
-#
+# This script sets up a complete L4D2-AI-Architect environment
+# on a Vultr GPU instance with CUDA, Python, and all dependencies
 
 set -e
 

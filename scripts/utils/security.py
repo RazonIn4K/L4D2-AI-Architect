@@ -333,3 +333,60 @@ def safe_read_yaml(file_path: str, base_dir: Path) -> Dict[str, Any]:
 
     with open(clean_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def safe_read_json(file_path: str, base_dir: Path) -> Any:
+    """
+    Safely read a JSON file with path traversal protection.
+
+    This function combines path validation and file reading in one atomic
+    operation to satisfy static analysis tools like Snyk.
+
+    Args:
+        file_path: User-provided path string
+        base_dir: The base directory that the path must be within
+
+    Returns:
+        Parsed JSON content
+
+    Raises:
+        ValueError: If the path escapes base_dir
+        FileNotFoundError: If the file doesn't exist
+    """
+    # Validate and resolve the path
+    validated_path = safe_path(file_path, base_dir)
+
+    # Convert to string and back to Path to break taint chain
+    clean_path = Path(str(validated_path))
+
+    with open(clean_path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def safe_read_text(file_path: str, base_dir: Path, encoding: str = "utf-8") -> str:
+    """
+    Safely read text content from a file with path traversal protection.
+
+    This function combines path validation and file reading in one atomic
+    operation to satisfy static analysis tools like Snyk.
+
+    Args:
+        file_path: User-provided path string
+        base_dir: The base directory that the path must be within
+        encoding: File encoding
+
+    Returns:
+        The text content of the file
+
+    Raises:
+        ValueError: If the path escapes base_dir
+        FileNotFoundError: If the file doesn't exist
+    """
+    # Validate and resolve the path
+    validated_path = safe_path(file_path, base_dir)
+
+    # Convert to string and back to Path to break taint chain
+    clean_path = Path(str(validated_path))
+
+    with open(clean_path, "r", encoding=encoding) as f:
+        return f.read()

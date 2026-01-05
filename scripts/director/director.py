@@ -7,6 +7,7 @@ dynamic gameplay experiences. Can operate in rule-based mode
 or learn from RL training.
 """
 
+import sys
 import time
 import json
 import logging
@@ -17,6 +18,10 @@ from enum import IntEnum
 import threading
 from pathlib import Path
 
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_read_json
+
 try:
     from .bridge import GameBridge
     from .policy import DirectorPolicy
@@ -24,6 +29,8 @@ except ImportError:
     # For standalone testing
     from bridge import GameBridge
     from policy import DirectorPolicy
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -128,12 +135,17 @@ class L4D2Director:
             }
         }
         
-        if config_path and Path(config_path).exists():
-            with open(config_path, 'r') as f:
-                user_config = json.load(f)
+        if config_path:
+            try:
+                # Use safe_read_json which validates path and reads in one operation
+                user_config = safe_read_json(config_path, PROJECT_ROOT)
                 # Merge with defaults
                 default_config.update(user_config)
-        
+            except FileNotFoundError:
+                logger.info(f"Config file not found: {config_path}, using defaults")
+            except ValueError as e:
+                logger.warning(f"Invalid config path: {e}")
+
         return default_config
     
     def start(self):

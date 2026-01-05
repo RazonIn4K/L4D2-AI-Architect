@@ -11,7 +11,8 @@ import sys
 import argparse
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Set
+from urllib.parse import urlparse
 
 try:
     import requests
@@ -23,6 +24,37 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from inference.copilot_server import CopilotServer
+from utils.security import safe_read_text, safe_write_text
+
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+
+# Allowed hosts for copilot server connections (SSRF prevention)
+ALLOWED_COPILOT_HOSTS: Set[str] = {
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+}
+
+
+def validate_server_url(url: str) -> str:
+    """Validate server URL to prevent SSRF attacks."""
+    parsed = urlparse(url)
+
+    # Only allow http/https schemes (localhost typically uses http)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(f"URL scheme '{parsed.scheme}' not allowed. Use http or https.")
+
+    # Extract hostname without port
+    hostname = parsed.hostname or ""
+
+    # Check if host is in allowed list
+    if hostname not in ALLOWED_COPILOT_HOSTS:
+        raise ValueError(
+            f"Host '{hostname}' not in allowed list. "
+            f"Allowed hosts: {ALLOWED_COPILOT_HOSTS}"
+        )
+
+    return url
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -30,9 +62,11 @@ logger = logging.getLogger(__name__)
 
 class CopilotClient:
     """Client for interacting with Copilot API"""
-    
+
     def __init__(self, base_url: str = "http://localhost:8000"):
-        self.base_url = base_url.rstrip('/')
+        # Validate URL to prevent SSRF attacks
+        validated_url = validate_server_url(base_url)
+        self.base_url = validated_url.rstrip('/')
     
     def complete(self, 
                  prompt: str, 
@@ -110,12 +144,15 @@ def complete_command(args):
     
     # Read prompt
     if args.file:
-        if not os.path.exists(args.file):
+        try:
+            # Use safe_read_text which validates path and reads in one operation
+            prompt = safe_read_text(args.file, PROJECT_ROOT)
+        except FileNotFoundError:
             print(f"Error: File {args.file} not found")
             sys.exit(1)
-        
-        with open(args.file, 'r') as f:
-            prompt = f.read()
+        except ValueError as e:
+            print(f"Error: Invalid file path - {e}")
+            sys.exit(1)
     elif args.prompt:
         prompt = args.prompt
     else:
@@ -139,9 +176,13 @@ def complete_command(args):
     # Output
     if completion:
         if args.output:
-            with open(args.output, 'w') as f:
-                f.write(completion)
-            print(f"Completion written to {args.output}")
+            try:
+                # Use safe_write_text which validates path and writes in one operation
+                output_path = safe_write_text(args.output, completion, PROJECT_ROOT)
+                print(f"Completion written to {output_path}")
+            except ValueError as e:
+                print(f"Error: Invalid output path - {e}")
+                sys.exit(1)
         else:
             print("\n--- Completion ---")
             print(completion)
@@ -376,11 +417,15 @@ public void SpawnCustomItem(float pos[3], const char[] classname) {
         sys.exit(1)
     
     template = templates[args.template]
-    
+
     if args.output:
-        with open(args.output, 'w') as f:
-            f.write(template)
-        print(f"Template written to {args.output}")
+        try:
+            # Use safe_write_text which validates path and writes in one operation
+            output_path = safe_write_text(args.output, template, PROJECT_ROOT)
+            print(f"Template written to {output_path}")
+        except ValueError as e:
+            print(f"Error: Invalid output path - {e}")
+            sys.exit(1)
     else:
         print(template)
 
