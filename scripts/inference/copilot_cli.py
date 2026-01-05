@@ -8,11 +8,10 @@ using the fine-tuned L4D2 modding model.
 
 import os
 import sys
-import json
 import argparse
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 try:
     import requests
@@ -96,7 +95,7 @@ class CopilotClient:
         try:
             response = requests.get(f"{self.base_url}/health", timeout=5)
             return response.status_code == 200
-        except:
+        except Exception:
             return False
 
 

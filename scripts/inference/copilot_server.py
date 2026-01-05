@@ -7,11 +7,10 @@ using fine-tuned models for SourcePawn and VScript.
 """
 
 import os
-import json
 import time
 import logging
 import torch
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Optional
 from pathlib import Path
 import argparse
 from dataclasses import dataclass

@@ -90,7 +90,7 @@ class GameBridge:
         if self.socket:
             try:
                 self.socket.close()
-            except:
+            except Exception:
                 pass
             self.socket = None
         
@@ -343,7 +343,7 @@ class MockBridge(GameBridge):
             for callback in self.state_callbacks:
                 try:
                     callback(self.game_state)
-                except:
+                except Exception:
                     pass
             
             time.sleep(0.1)

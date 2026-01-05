@@ -11,10 +11,9 @@ import time
 import json
 import logging
 import numpy as np
-from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass, asdict
+from typing import Dict, List, Any, Optional
+from dataclasses import dataclass
 from enum import IntEnum
-import socket
 import threading
 from pathlib import Path
 
@@ -337,7 +336,7 @@ class L4D2Director:
 def main():
     """Standalone director server"""
     import argparse
-    import os
+    import logging
     
     parser = argparse.ArgumentParser(description="L4D2 AI Director")
     parser.add_argument("--mode", choices=["rule", "rl", "hybrid"], 
