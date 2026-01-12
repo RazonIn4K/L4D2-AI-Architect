@@ -84,7 +84,7 @@ jobs:
       data_ready: ${{ steps.validate.outputs.data_ready }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate configuration
         id: validate
@@ -119,7 +119,7 @@ jobs:
     if: inputs.training_type == 'llm' || inputs.training_type == 'both'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -244,7 +244,7 @@ jobs:
     if: inputs.training_type == 'rl' || inputs.training_type == 'both'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v5
