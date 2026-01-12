@@ -2,6 +2,42 @@
 
 This guide covers the complete training workflow for fine-tuning LLMs on L4D2 modding code.
 
+---
+
+## Current Project Status (January 2026)
+
+### Proof of Concept Complete
+- **Base Model**: TinyLlama-1.1B-Chat-v1.0
+- **Method**: LoRA (r=16, alpha=32)
+- **Training**: 20 steps, loss: 2.52 → 1.73
+- **Location**: `model_adapters/l4d2-tiny-lora/`
+
+### Available Training Data
+| Dataset | Samples | File |
+|---------|---------|------|
+| Training | 971 | `data/processed/combined_train.jsonl` |
+| Validation | 108 | `data/processed/combined_val.jsonl` |
+| Quality Score | 0.93/1.0 | Real GitHub SourceMod plugins |
+
+### RunPod Instance (Paused)
+- **Pod ID**: `pxehdud5z5fk3y`
+- **GPU**: A40 (46GB VRAM)
+- **Cost**: $0.41/hr running, $0.01/hr paused
+- **Status**: Stopped (preserving credits)
+
+### Quick Resume Training
+```bash
+# 1. Start pod at console.runpod.io
+# 2. Upload full dataset:
+scp data/processed/*.jsonl pxehdud5z5fk3y-64411314@ssh.runpod.io:/workspace/L4D2-AI-Architect/data/processed/
+# 3. SSH and train:
+ssh pxehdud5z5fk3y-64411314@ssh.runpod.io -i ~/.ssh/id_ed25519
+cd /workspace/L4D2-AI-Architect && source venv/bin/activate
+python scripts/training/train_v2.py
+```
+
+---
+
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)

@@ -1,0 +1,151 @@
+# L4D2-AI-Architect: CodeLlama-7B Turbo Training Configuration
+#
+# Optimized for maximum training speed on A100 (40GB VRAM)
+#
+# Turbo optimizations:
+#   - Higher batch size (14) with no gradient accumulation
+#   - Higher learning rate (2.5e-4)
+#   - Fewer warmup steps (20)
+#   - Packing enabled for efficiency
+#   - No evaluation for faster training
+#   - Less frequent checkpointing
+#
+# Why CodeLlama:
+#   - Code-focused architecture (trained on code)
+#   - Strong syntax understanding
+#   - Fill-in-the-middle (FIM) capability
+#   - Good at structured languages like SourcePawn
+#
+# Performance expectations:
+#   - Fastest training time
+#   - May sacrifice some convergence quality for speed
+#   - Best for rapid iteration and experimentation
+
+model:
+  # Base model - CodeLlama-7B Instruct (4-bit quantized)
+  name: "unsloth/codellama-7b-instruct-bnb-4bit"
+
+  # Context window
+  max_seq_length: 4096
+
+  # Auto-detect dtype (will use bf16 on A100)
+  dtype: null
+
+  # 4-bit quantization for memory efficiency
+  load_in_4bit: true
+
+lora:
+  # LoRA rank - balanced for code generation
+  r: 32
+
+  # Alpha = 2x rank
+  lora_alpha: 64
+
+  # No dropout - Unsloth optimized
+  lora_dropout: 0
+
+  # Target all attention and MLP layers
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+  bias: "none"
+
+  # Unsloth gradient checkpointing
+  use_gradient_checkpointing: "unsloth"
+
+  # Standard LoRA
+  use_rslora: false
+
+training:
+  # Training epochs
+  num_train_epochs: 3
+
+  # Turbo: Higher batch size
+  per_device_train_batch_size: 14
+
+  # Turbo: No gradient accumulation (effective batch = 14)
+  gradient_accumulation_steps: 1
+
+  # Turbo: Higher learning rate
+  learning_rate: 2.5e-4
+  weight_decay: 0.01
+
+  # Turbo: Fewer warmup steps
+  warmup_steps: 20
+  lr_scheduler_type: "cosine"
+
+  # 8-bit AdamW optimizer
+  optim: "adamw_8bit"
+
+  # Use BF16 on A100
+  fp16: false
+  bf16: true
+
+  # Turbo: Less frequent logging
+  logging_steps: 50
+
+  # Turbo: Less frequent checkpointing
+  save_steps: 300
+  save_total_limit: 3
+
+  # Reproducibility
+  seed: 3407
+
+  # Gradient clipping
+  max_grad_norm: 1.0
+
+  # Turbo: Enable packing for efficiency
+  packing: true
+
+data:
+  # Training data - V15 dataset (2773 examples - latest)
+  train_file: "l4d2_train_v15.jsonl"
+
+  # Turbo: No validation
+  val_file: null
+
+  # Use all samples
+  max_samples: null
+
+output:
+  # Output directory
+  dir: "l4d2-codellama-turbo-lora"
+
+  # Hub settings
+  push_to_hub: false
+  hub_model_id: null
+
+# A100-specific optimizations
+advanced:
+  # Flash Attention 2
+  use_flash_attention_2: true
+
+  # Multi-worker data loading
+  dataloader_num_workers: 4
+
+  # Pin memory for faster transfers
+  dataloader_pin_memory: true
+
+  # TF32 acceleration
+  tf32: true
+
+# Monitoring
+monitoring:
+  report_to: "tensorboard"
+  logging_dir: "data/training_logs"
+
+  # Turbo: No evaluation
+  evaluation_strategy: "no"
+  eval_steps: null
+
+# Expected performance on A100 40GB:
+# - Fastest training time due to turbo optimizations
+# - Memory usage: ~35-38GB peak (higher batch size)
+# - Packing reduces padding overhead significantly
+# - Best for rapid experimentation

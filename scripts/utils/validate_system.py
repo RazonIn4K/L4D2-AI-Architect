@@ -39,7 +39,10 @@ def test_warning(msg):
 
 class SystemValidator:
     def __init__(self):
-        self.project_root = Path(__file__).parent.parent.parent  # Go up to project root
+        self.project_root = Path(__file__).parent.parent.parent.resolve()  # Go up to project root
+        # Security: Validate project root exists and is a directory
+        if not self.project_root.is_dir():
+            raise RuntimeError(f"Invalid project root: {self.project_root}")
         self.tests_passed = 0
         self.tests_failed = 0
         self.warnings = 0
@@ -204,8 +207,10 @@ class SystemValidator:
             ("scripts.utils.security", "Security utilities"),
         ]
         
-        # Add scripts to path
-        sys.path.insert(0, str(self.project_root))
+        # Add scripts to path (validated project_root only)
+        project_str = str(self.project_root)
+        if project_str not in sys.path:
+            sys.path.insert(0, project_str)
         
         all_good = True
         for module, name in test_imports:

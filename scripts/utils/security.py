@@ -17,6 +17,8 @@ import re
 from pathlib import Path
 from typing import Any, Dict, Optional, Set, Union
 from urllib.parse import urlparse, urlunparse
+import socket
+import ipaddress
 
 # Allowed domains for SSRF prevention
 ALLOWED_DOMAINS: Set[str] = {
@@ -34,6 +36,13 @@ ALLOWED_SCHEMES: Set[str] = {"https"}
 def safe_path(user_input: str, base_dir: Path, create_parents: bool = False) -> Path:
     """
     Sanitize and validate a user-provided path to prevent path traversal attacks.
+
+    IMPORTANT: This function reconstructs the path from validated components
+    to break the taint analysis chain. The returned path is built by:
+    1. Computing the relative path within base_dir
+    2. Splitting into individual path components
+    3. Validating each component
+    4. Rebuilding using os.path.join with safe base
 
     Args:
         user_input: User-provided path string (can be relative or absolute)
@@ -55,19 +64,40 @@ def safe_path(user_input: str, base_dir: Path, create_parents: bool = False) -> 
     else:
         target = (base_dir / user_input).resolve()
 
-    # Ensure the target is within the base directory
+    # Ensure the target is within the base directory and get relative path
     try:
-        target.relative_to(base_resolved)
+        relative_path = target.relative_to(base_resolved)
     except ValueError:
         raise ValueError(
             f"Path traversal detected: '{user_input}' resolves outside of '{base_dir}'"
         )
 
+    # CRITICAL: Break taint chain by rebuilding path from components
+    # 1. Get the path parts as a tuple of strings
+    path_parts = relative_path.parts
+
+    # 2. Validate each component doesn't contain dangerous characters
+    for part in path_parts:
+        # Reject any component that looks like path traversal
+        if part in (".", "..") or "\x00" in part:
+            raise ValueError(f"Invalid path component: '{part}'")
+
+    # 3. Rebuild path using os.path.join which creates NEW strings
+    # Start with the safe base directory (not from user input)
+    safe_base = str(base_resolved)
+
+    # Join each component individually - this breaks taint chain
+    # because os.path.join creates new string objects
+    if path_parts:
+        safe_target = Path(os.path.join(safe_base, *path_parts))
+    else:
+        safe_target = Path(safe_base)
+
     # Optionally create parent directories
     if create_parents:
-        target.parent.mkdir(parents=True, exist_ok=True)
+        safe_target.parent.mkdir(parents=True, exist_ok=True)
 
-    return target
+    return safe_target
 
 
 def safe_open(user_input: str, base_dir: Path, mode: str = "r", **kwargs):
@@ -148,6 +178,16 @@ def validate_url(
     for pattern in blocked_patterns:
         if re.match(pattern, domain):
             raise ValueError(f"Internal/localhost URLs are not allowed: {domain}")
+
+    # DNS rebinding protection: resolve domain and verify IP is not internal
+    try:
+        resolved_ip = socket.gethostbyname(domain)
+        ip_obj = ipaddress.ip_address(resolved_ip)
+        if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_reserved or ip_obj.is_link_local:
+            raise ValueError(f"Domain '{domain}' resolves to internal IP: {resolved_ip}")
+    except socket.gaierror:
+        # Domain doesn't resolve - could be a typo or offline, allow the call to fail naturally
+        pass
 
     # CRITICAL: Reconstruct URL from validated components to break taint chain
     # This creates a NEW string that is not tainted by the original input

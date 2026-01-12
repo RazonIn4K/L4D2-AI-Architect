@@ -23,12 +23,14 @@ from dataclasses import dataclass, asdict
 from urllib.parse import urljoin, urlparse
 from html.parser import HTMLParser
 
+import subprocess
+
 try:
     import requests
     from bs4 import BeautifulSoup
 except ImportError:
     print("Installing required packages...")
-    os.system(f"{sys.executable} -m pip install requests beautifulsoup4 lxml")
+    subprocess.run([sys.executable, "-m", "pip", "install", "requests", "beautifulsoup4", "lxml"], check=True)
     import requests
     from bs4 import BeautifulSoup
 

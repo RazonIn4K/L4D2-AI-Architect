@@ -1,0 +1,59 @@
+# Dependabot Configuration
+# Automatically checks for dependency updates
+
+version: 2
+updates:
+  # Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    groups:
+      # Group ML dependencies together
+      ml-dependencies:
+        patterns:
+          - "torch*"
+          - "transformers*"
+          - "datasets*"
+          - "accelerate*"
+          - "peft*"
+          - "trl*"
+          - "bitsandbytes*"
+      # Group testing dependencies
+      testing:
+        patterns:
+          - "pytest*"
+          - "coverage*"
+      # Group linting dependencies
+      linting:
+        patterns:
+          - "black*"
+          - "flake8*"
+          - "isort*"
+          - "bandit*"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

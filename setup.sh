@@ -1,13 +1,13 @@
 #!/bin/bash
 # L4D2-AI-Architect Complete Setup Script
-# 
+#
 # This script sets up the entire project including:
 # - Python environment
 # - Dependencies
 # - Game server configuration
 # - Initial data collection
 
-set -e  # Exit on any error
+set -euo pipefail  # Exit on error, undefined vars, and pipe failures
 
 # Colors for output
 RED='\033[0;31m'
@@ -54,7 +54,8 @@ print_header "L4D2-AI-Architect Setup"
 print_header "Checking Python"
 if command_exists python3; then
     PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
-    if [[ $(echo "$PYTHON_VERSION >= 3.10" | bc -l) -eq 1 ]]; then
+    # Use awk instead of bc for better compatibility and safer comparison
+    if awk -v ver="$PYTHON_VERSION" 'BEGIN { exit !(ver >= 3.10) }'; then
         print_success "Python $PYTHON_VERSION found"
     else
         print_error "Python 3.10+ required, found $PYTHON_VERSION"
@@ -98,7 +99,7 @@ pip install -r requirements.txt
 print_success "Installed Python dependencies"
 
 # Install Unsloth separately if GPU available
-if [ "$GPU_AVAILABLE" = true ]; then
+if [ "${GPU_AVAILABLE:-false}" = true ]; then
     print_header "Installing Unsloth (GPU optimized)"
     pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
     print_success "Installed Unsloth"
@@ -184,46 +185,49 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 # Create systemd service files (Linux only)
-if [ "$OS" = "linux" ]; then
+if [ "${OS:-}" = "linux" ]; then
     print_header "Creating Service Files"
-    
-    # Director service
-    cat > l4d2-director.service << EOF
+
+    CURRENT_USER="${USER:-$(whoami)}"
+    CURRENT_DIR="$(pwd)"
+
+    # Director service - use quoted heredoc to prevent expansion issues
+    cat > l4d2-director.service << SERVICEEOF
 [Unit]
 Description=L4D2 AI Director
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
-WorkingDirectory=$(pwd)
-Environment=PATH=$(pwd)/venv/bin
-ExecStart=$(pwd)/venv/bin/python scripts/director/director.py --mode rule
+User=${CURRENT_USER}
+WorkingDirectory=${CURRENT_DIR}
+Environment=PATH=${CURRENT_DIR}/venv/bin
+ExecStart=${CURRENT_DIR}/venv/bin/python scripts/director/director.py --mode rule
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SERVICEEOF
 
     # Copilot service
-    cat > l4d2-copilot.service << EOF
+    cat > l4d2-copilot.service << SERVICEEOF
 [Unit]
 Description=L4D2 Copilot Inference Server
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
-WorkingDirectory=$(pwd)
-Environment=PATH=$(pwd)/venv/bin
-ExecStart=$(pwd)/venv/bin/python scripts/inference/copilot_server.py
+User=${CURRENT_USER}
+WorkingDirectory=${CURRENT_DIR}
+Environment=PATH=${CURRENT_DIR}/venv/bin
+ExecStart=${CURRENT_DIR}/venv/bin/python scripts/inference/copilot_server.py
 Restart=always
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SERVICEEOF
 
     print_success "Created systemd service files"
     print_warning "To install services, run:"

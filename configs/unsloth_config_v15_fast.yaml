@@ -1,0 +1,99 @@
+# L4D2-AI-Architect: SPEED-OPTIMIZED A100 Training Configuration
+#
+# Aggressive optimizations for MAXIMUM THROUGHPUT on A100 40GB
+# Use this when you need the fastest training time.
+#
+# Trade-offs vs standard config:
+#   - Larger batch size (may slightly affect convergence)
+#   - No gradient accumulation (faster step times)
+#   - Slightly more aggressive learning rate
+#
+# Expected improvement: 20-30% faster training
+
+model:
+  name: "unsloth/mistral-7b-instruct-v0.3-bnb-4bit"
+  max_seq_length: 4096
+  dtype: null
+  load_in_4bit: true
+
+lora:
+  # Same LoRA config - quality shouldn't change
+  r: 32
+  lora_alpha: 64
+  lora_dropout: 0
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+  bias: "none"
+  use_gradient_checkpointing: "unsloth"
+  use_rslora: false
+
+training:
+  num_train_epochs: 3
+
+  # AGGRESSIVE: Push batch size to 12 (vs 8 in standard)
+  # A100 40GB can handle this with 4-bit model + Unsloth optimizations
+  per_device_train_batch_size: 12
+
+  # No accumulation = faster step times
+  # Effective batch = 12 (vs 16 in standard) - slightly smaller but faster
+  gradient_accumulation_steps: 1
+
+  # Slightly higher LR to compensate for smaller effective batch
+  learning_rate: 2.5e-4
+  weight_decay: 0.01
+  warmup_steps: 30  # Shorter warmup
+  lr_scheduler_type: "cosine"
+
+  optim: "adamw_8bit"
+  fp16: false
+  bf16: true
+
+  # Less frequent logging for speed
+  logging_steps: 25
+
+  # Less frequent checkpoints (faster)
+  save_steps: 200
+  save_total_limit: 2
+
+  seed: 3407
+  max_grad_norm: 1.0
+
+data:
+  train_file: "l4d2_train_v15.jsonl"
+  val_file: "combined_val.jsonl"
+  max_samples: null
+
+output:
+  dir: "l4d2-mistral-v15-fast-lora"
+  push_to_hub: false
+  hub_model_id: null
+
+# Maximum speed optimizations
+advanced:
+  use_flash_attention_2: true
+  dataloader_num_workers: 6  # Max workers
+  dataloader_pin_memory: true
+  tf32: true
+
+  # Dataset packing for better GPU utilization
+  # Combines short samples to fill context window
+  packing: true
+
+monitoring:
+  report_to: "tensorboard"
+  logging_dir: "data/training_logs"
+  # Skip eval during training for speed
+  evaluation_strategy: "no"
+  eval_steps: null
+
+# Expected performance:
+# - Training time: ~2.5-3 hours (vs ~4 hours standard)
+# - Memory usage: ~38GB peak
+# - ~25% faster than standard config
+# - Quality should be nearly identical

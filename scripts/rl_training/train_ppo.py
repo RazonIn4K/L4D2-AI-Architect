@@ -3,9 +3,12 @@
 PPO Training Script for L4D2 Bots
 
 Trains Proximal Policy Optimization agents using Stable-Baselines3
-to control L4D2 bots via the Mnemosyne environment.
+to control L4D2 bots. Supports both standalone mock training and
+live game server training via the Mnemosyne environment.
 
 Supports:
+- Standalone training with mock environment (default, no game server required)
+- Live training via Mnemosyne environment (requires L4D2 game server)
 - Single agent training
 - Multi-agent (vectorized environments)
 - Multiple agent personalities (via reward shaping)
@@ -13,9 +16,19 @@ Supports:
 - Checkpoint saving/resuming
 
 Usage:
-    python train_ppo.py --episodes 10000 --save-path models/ppo_agent
-    python train_ppo.py --resume models/ppo_agent --episodes 5000
-    python train_ppo.py --personality aggressive --episodes 10000
+    # Standalone training with mock environment (default)
+    python train_ppo.py --timesteps 100000 --personality balanced
+    python train_ppo.py --env mock --timesteps 500000 --n-envs 4
+
+    # Training with live L4D2 game server
+    python train_ppo.py --env mnemosyne --host localhost --port 27050
+
+    # Resume training
+    python train_ppo.py --resume models/ppo_agent --timesteps 5000
+
+    # Evaluation and demo
+    python train_ppo.py --mode eval --model models/ppo_agent --env mock
+    python train_ppo.py --mode demo --model models/ppo_agent --env mock
 """
 
 import os
@@ -56,13 +69,15 @@ def _resolve_path_within_root(path: Path, root: Path) -> Path:
 
 def install_dependencies():
     """Install required RL dependencies."""
+    import subprocess
     deps = [
         "stable-baselines3[extra]",
         "gymnasium",
         "tensorboard",
     ]
     for dep in deps:
-        os.system(f"{sys.executable} -m pip install {dep}")
+        # Use subprocess.run without shell=True to prevent command injection
+        subprocess.run([sys.executable, "-m", "pip", "install", dep], check=False)
 
 
 try:
@@ -90,67 +105,94 @@ except ImportError:
     from stable_baselines3.common.evaluation import evaluate_policy
     from stable_baselines3.common.monitor import Monitor
 
-# Import our environment
+# Import our environments
 sys.path.insert(0, str(Path(__file__).parent))
 from mnemosyne_env import MnemosyneEnv
+from enhanced_mock_env import EnhancedL4D2Env
 
 
 # Agent personality presets (reward shaping configurations)
+# Must include all keys expected by EnhancedL4D2Env
 PERSONALITIES = {
     "balanced": {
         "kill": 1.0,
+        "kill_special": 5.0,
         "damage_dealt": 0.1,
         "damage_taken": -0.1,
         "heal_teammate": 5.0,
+        "heal_self": 2.0,
         "incapped": -10.0,
         "death": -50.0,
         "safe_room": 100.0,
         "survival": 0.01,
         "proximity_to_team": 0.001,
+        "progress": 0.05,
+        "checkpoint": 10.0,
+        "item_pickup": 1.0,
     },
     "aggressive": {
         "kill": 3.0,            # Much higher kill reward
+        "kill_special": 10.0,
         "damage_dealt": 0.3,    # Reward damage more
         "damage_taken": -0.05,  # Less penalty for taking damage
         "heal_teammate": 1.0,   # Lower healing priority
+        "heal_self": 0.5,
         "incapped": -5.0,       # Less afraid of getting incapped
         "death": -30.0,
         "safe_room": 50.0,      # Less focused on objective
         "survival": 0.005,
         "proximity_to_team": 0.0,  # Doesn't care about team
+        "progress": 0.02,
+        "checkpoint": 5.0,
+        "item_pickup": 0.5,
     },
     "medic": {
         "kill": 0.5,
+        "kill_special": 3.0,
         "damage_dealt": 0.05,
         "damage_taken": -0.2,   # Very cautious
         "heal_teammate": 15.0,  # High healing priority
+        "heal_self": 5.0,
         "incapped": -15.0,
         "death": -100.0,        # Really doesn't want to die
         "safe_room": 100.0,
         "survival": 0.02,
         "proximity_to_team": 0.01,  # Stays with team
+        "progress": 0.05,
+        "checkpoint": 10.0,
+        "item_pickup": 2.0,
     },
     "speedrunner": {
         "kill": 0.2,            # Minimal combat
+        "kill_special": 1.0,
         "damage_dealt": 0.0,
         "damage_taken": -0.05,
         "heal_teammate": 0.5,
+        "heal_self": 0.5,
         "incapped": -20.0,
         "death": -50.0,
         "safe_room": 200.0,     # High objective priority
         "survival": 0.0,
         "proximity_to_team": -0.001,  # Doesn't wait for team
+        "progress": 0.2,
+        "checkpoint": 20.0,
+        "item_pickup": 0.2,
     },
     "defender": {
         "kill": 2.0,
+        "kill_special": 8.0,
         "damage_dealt": 0.2,
         "damage_taken": -0.15,
         "heal_teammate": 8.0,
+        "heal_self": 3.0,
         "incapped": -15.0,
         "death": -80.0,
         "safe_room": 80.0,
         "survival": 0.02,
         "proximity_to_team": 0.02,  # High team cohesion
+        "progress": 0.03,
+        "checkpoint": 8.0,
+        "item_pickup": 1.5,
     },
 }
 
@@ -161,14 +203,28 @@ def make_env(
     bot_id: int = 0,
     personality: str = "balanced",
     rank: int = 0,
+    env_type: str = "mock",
 ) -> Callable[[], gym.Env]:
-    """Factory function to create environments."""
+    """Factory function to create environments.
+
+    Args:
+        host: Game server host (only used for mnemosyne env)
+        port: Base port for bot connections (only used for mnemosyne env)
+        bot_id: Bot identifier (only used for mnemosyne env)
+        personality: Agent personality preset for reward shaping
+        rank: Environment rank for vectorized training
+        env_type: Environment type - "mock" for standalone training, "mnemosyne" for live game
+    """
     def _init() -> gym.Env:
-        env = MnemosyneEnv(
-            host=host,
-            port=port + rank,  # Different port per bot
-            bot_id=bot_id + rank,
-        )
+        if env_type == "mnemosyne":
+            env = MnemosyneEnv(
+                host=host,
+                port=port + rank,  # Different port per bot
+                bot_id=bot_id + rank,
+            )
+        else:  # mock
+            env = EnhancedL4D2Env()
+
         # Apply personality
         if personality in PERSONALITIES:
             env.reward_config = PERSONALITIES[personality].copy()
@@ -182,18 +238,34 @@ def create_vectorized_env(
     base_port: int = 27050,
     personality: str = "balanced",
     use_subproc: bool = False,
+    env_type: str = "mock",
 ) -> VecMonitor:
-    """Create vectorized environment for parallel training."""
+    """Create vectorized environment for parallel training.
+
+    Args:
+        n_envs: Number of parallel environments
+        host: Game server host (only used for mnemosyne env)
+        base_port: Base port for bot connections (only used for mnemosyne env)
+        personality: Agent personality preset for reward shaping
+        use_subproc: Use SubprocVecEnv for true parallelism (mnemosyne only)
+        env_type: Environment type - "mock" for standalone training, "mnemosyne" for live game
+
+    Note:
+        SubprocVecEnv is only used when env_type="mnemosyne" and use_subproc=True.
+        Mock environments use DummyVecEnv to avoid pickle issues.
+    """
     env_fns = [
-        make_env(host, base_port, i, personality, i)
+        make_env(host, base_port, i, personality, i, env_type)
         for i in range(n_envs)
     ]
-    
-    if use_subproc and n_envs > 1:
+
+    # Use DummyVecEnv for mock env to avoid pickle issues with dataclasses
+    # SubprocVecEnv only makes sense for mnemosyne (true parallel game instances)
+    if use_subproc and n_envs > 1 and env_type == "mnemosyne":
         vec_env = SubprocVecEnv(env_fns)
     else:
         vec_env = DummyVecEnv(env_fns)
-    
+
     return VecMonitor(vec_env)
 
 
@@ -243,9 +315,24 @@ def train(
     eval_freq: int = 10000,
     save_freq: int = 50000,
     log_dir: Optional[Path] = None,
+    env_type: str = "mock",
 ):
-    """Main training function."""
-    
+    """Main training function.
+
+    Args:
+        total_timesteps: Total training timesteps
+        n_envs: Number of parallel environments
+        personality: Agent personality preset
+        save_path: Path to save model
+        resume_from: Path to resume training from
+        host: Game server host (mnemosyne only)
+        base_port: Base port for connections (mnemosyne only)
+        eval_freq: Evaluation frequency in timesteps
+        save_freq: Checkpoint save frequency in timesteps
+        log_dir: Directory for TensorBoard logs
+        env_type: Environment type - "mock" (default) or "mnemosyne"
+    """
+
     # Setup directories with path validation
     project_root = Path(__file__).parent.parent.parent.resolve()
     if save_path is None:
@@ -253,7 +340,7 @@ def train(
         save_path = MODELS_DIR / f"ppo_{personality}_{timestamp}"
     save_path = _resolve_path_within_root(Path(save_path), PROJECT_ROOT)
     save_path.mkdir(parents=True, exist_ok=True)
-    
+
     if log_dir is None:
         log_dir = LOGS_DIR / save_path.name
     log_dir = _resolve_path_within_root(Path(log_dir), PROJECT_ROOT)
@@ -261,15 +348,16 @@ def train(
 
     if resume_from is not None:
         resume_from = _resolve_path_within_root(Path(resume_from), PROJECT_ROOT)
-    
+
     logger.info(f"Training PPO agent with '{personality}' personality")
+    logger.info(f"Environment type: {env_type}")
     logger.info(f"Model save path: {save_path}")
     logger.info(f"Log directory: {log_dir}")
-    
+
     # Create environments
-    logger.info(f"Creating {n_envs} parallel environments...")
-    train_env = create_vectorized_env(n_envs, host, base_port, personality)
-    eval_env = create_vectorized_env(1, host, base_port + 100, personality)
+    logger.info(f"Creating {n_envs} parallel environments ({env_type})...")
+    train_env = create_vectorized_env(n_envs, host, base_port, personality, env_type=env_type)
+    eval_env = create_vectorized_env(1, host, base_port + 100, personality, env_type=env_type)
     
     # Get PPO config
     ppo_config = get_ppo_config(personality)
@@ -357,39 +445,64 @@ def evaluate(
     n_episodes: int = 100,
     personality: str = "balanced",
     render: bool = False,
+    env_type: str = "mock",
 ):
-    """Evaluate a trained model."""
+    """Evaluate a trained model.
+
+    Args:
+        model_path: Path to the trained model
+        n_episodes: Number of evaluation episodes
+        personality: Agent personality preset
+        render: Whether to render the environment
+        env_type: Environment type - "mock" (default) or "mnemosyne"
+    """
     model_path = _resolve_path_within_root(model_path, PROJECT_ROOT)
     logger.info(f"Loading model from {model_path}")
-    
-    env = MnemosyneEnv(render_mode="human" if render else None)
+    logger.info(f"Environment type: {env_type}")
+
+    if env_type == "mnemosyne":
+        env = MnemosyneEnv(render_mode="human" if render else None)
+    else:
+        env = EnhancedL4D2Env(render_mode="human" if render else None)
+
     if personality in PERSONALITIES:
         env.reward_config = PERSONALITIES[personality].copy()
     env = Monitor(env)
-    
+
     model = PPO.load(model_path, env=env)
-    
+
     logger.info(f"Evaluating for {n_episodes} episodes...")
-    
+
     mean_reward, std_reward = evaluate_policy(
         model, env, n_eval_episodes=n_episodes, deterministic=True
     )
-    
+
     logger.info(f"Mean reward: {mean_reward:.2f} +/- {std_reward:.2f}")
-    
+
     env.close()
     return mean_reward, std_reward
 
 
-def demo(model_path: Path, personality: str = "balanced"):
-    """Run a demo of the trained agent."""
+def demo(model_path: Path, personality: str = "balanced", env_type: str = "mock"):
+    """Run a demo of the trained agent.
+
+    Args:
+        model_path: Path to the trained model
+        personality: Agent personality preset
+        env_type: Environment type - "mock" (default) or "mnemosyne"
+    """
     model_path = _resolve_path_within_root(model_path, PROJECT_ROOT)
     logger.info(f"Loading model from {model_path}")
-    
-    env = MnemosyneEnv(render_mode="human")
+    logger.info(f"Environment type: {env_type}")
+
+    if env_type == "mnemosyne":
+        env = MnemosyneEnv(render_mode="human")
+    else:
+        env = EnhancedL4D2Env(render_mode="human")
+
     if personality in PERSONALITIES:
         env.reward_config = PERSONALITIES[personality].copy()
-    
+
     model = PPO.load(model_path, env=env)
     
     obs, info = env.reset()
@@ -426,12 +539,18 @@ def demo(model_path: Path, personality: str = "balanced"):
 
 def main():
     parser = argparse.ArgumentParser(description="Train PPO agent for L4D2")
-    
+
     # Mode
     parser.add_argument("--mode", type=str, default="train",
                         choices=["train", "eval", "demo"],
                         help="Operation mode")
-    
+
+    # Environment selection
+    parser.add_argument("--env", type=str, default="mock",
+                        choices=["mock", "mnemosyne"],
+                        help="Environment type: 'mock' for standalone training (default), "
+                             "'mnemosyne' for live L4D2 game server")
+
     # Training parameters
     parser.add_argument("--timesteps", type=int, default=1_000_000,
                         help="Total training timesteps")
@@ -440,7 +559,7 @@ def main():
     parser.add_argument("--personality", type=str, default="balanced",
                         choices=list(PERSONALITIES.keys()),
                         help="Agent personality preset")
-    
+
     # Paths
     parser.add_argument("--save-path", type=str,
                         help="Path to save model")
@@ -448,19 +567,19 @@ def main():
                         help="Resume from checkpoint")
     parser.add_argument("--model", type=str,
                         help="Model path for eval/demo")
-    
-    # Connection
+
+    # Connection (mnemosyne only)
     parser.add_argument("--host", type=str, default="localhost",
-                        help="Game server host")
+                        help="Game server host (mnemosyne env only)")
     parser.add_argument("--port", type=int, default=27050,
-                        help="Base port for bot connections")
-    
+                        help="Base port for bot connections (mnemosyne env only)")
+
     # Evaluation
     parser.add_argument("--eval-episodes", type=int, default=100,
                         help="Number of evaluation episodes")
     parser.add_argument("--render", action="store_true",
                         help="Render during evaluation")
-    
+
     args = parser.parse_args()
 
     try:
@@ -473,6 +592,7 @@ def main():
                 resume_from=Path(args.resume) if args.resume else None,
                 host=args.host,
                 base_port=args.port,
+                env_type=args.env,
             )
 
         elif args.mode == "eval":
@@ -484,6 +604,7 @@ def main():
                 n_episodes=args.eval_episodes,
                 personality=args.personality,
                 render=args.render,
+                env_type=args.env,
             )
 
         elif args.mode == "demo":
@@ -493,6 +614,7 @@ def main():
             demo(
                 model_path=Path(args.model),
                 personality=args.personality,
+                env_type=args.env,
             )
     except ValueError as e:
         logger.error(str(e))

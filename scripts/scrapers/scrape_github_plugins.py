@@ -21,11 +21,13 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any, Set
 from dataclasses import dataclass, asdict
 
+import subprocess
+
 try:
     import requests
 except ImportError:
     print("Installing requests...")
-    os.system(f"{sys.executable} -m pip install requests")
+    subprocess.run([sys.executable, "-m", "pip", "install", "requests"], check=True)
     import requests
 
 # Add parent to path for security utils

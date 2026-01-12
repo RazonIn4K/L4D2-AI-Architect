@@ -1,0 +1,374 @@
+======================================================================
+L4D2-AI-Architect Deployment Package Manifest
+======================================================================
+
+Generated: 2026-01-08 20:27:46
+
+======================================================================
+VULTR PACKAGE (vultr_package.tar.gz)
+======================================================================
+Total Size: 3.60 MB
+File Count: 70
+
+Files:
+  L4D2-AI-Architect/data/processed/l4d2_train_v13.jsonl
+    Size: 2.44 MB, Hash: 18d518c6
+  L4D2-AI-Architect/configs/director_config.yaml
+    Size: 2.85 KB, Hash: 00adc43a
+  L4D2-AI-Architect/configs/unsloth_config.yaml
+    Size: 2.71 KB, Hash: b9184dfc
+  L4D2-AI-Architect/configs/unsloth_config_a100.yaml
+    Size: 3.03 KB, Hash: aeb05acb
+  L4D2-AI-Architect/configs/unsloth_config_gh200.yaml
+    Size: 2.97 KB, Hash: 61006bbd
+  L4D2-AI-Architect/configs/unsloth_config_qwen.yaml
+    Size: 2.92 KB, Hash: a1e5b69d
+  L4D2-AI-Architect/configs/unsloth_config_v12.yaml
+    Size: 3.09 KB, Hash: e562da83
+  L4D2-AI-Architect/configs/unsloth_config_v13.yaml
+    Size: 3.12 KB, Hash: 8e0e4702
+  L4D2-AI-Architect/scripts/director/__init__.py
+    Size: 40.00 B, Hash: eb423b50
+  L4D2-AI-Architect/scripts/director/bridge.py
+    Size: 13.47 KB, Hash: e24a5df5
+  L4D2-AI-Architect/scripts/director/director.py
+    Size: 13.41 KB, Hash: bb2527d7
+  L4D2-AI-Architect/scripts/director/policy.py
+    Size: 13.96 KB, Hash: 00487ce4
+  L4D2-AI-Architect/scripts/evaluation/automated_test.py
+    Size: 24.24 KB, Hash: 6c4aa39c
+  L4D2-AI-Architect/scripts/evaluation/benchmark_suite.py
+    Size: 57.63 KB, Hash: e7cedf1e
+  L4D2-AI-Architect/scripts/evaluation/compare_models.py
+    Size: 6.86 KB, Hash: 6382b4f7
+  L4D2-AI-Architect/scripts/evaluation/evaluate_models.py
+    Size: 14.97 KB, Hash: 20e20f2f
+  L4D2-AI-Architect/scripts/evaluation/model_dashboard.py
+    Size: 28.00 KB, Hash: 68c5544f
+  L4D2-AI-Architect/scripts/evaluation/openai_evals.py
+    Size: 20.36 KB, Hash: 53ab7991
+  L4D2-AI-Architect/scripts/evaluation/run_tinyllama_eval.py
+    Size: 4.73 KB, Hash: 056ba93a
+  L4D2-AI-Architect/scripts/evaluation/test_qwen_model.py
+    Size: 10.47 KB, Hash: 7234209e
+  L4D2-AI-Architect/scripts/evaluation/test_tinyllama.py
+    Size: 1.06 KB, Hash: 06849ef6
+  L4D2-AI-Architect/scripts/evaluation/validate_generated_code.py
+    Size: 30.73 KB, Hash: 52c9a203
+  L4D2-AI-Architect/scripts/inference/__init__.py
+    Size: 37.00 B, Hash: e43155cd
+  L4D2-AI-Architect/scripts/inference/copilot_cli.py
+    Size: 20.44 KB, Hash: b58becd0
+  L4D2-AI-Architect/scripts/inference/copilot_server.py
+    Size: 12.49 KB, Hash: e0532a13
+  L4D2-AI-Architect/scripts/inference/copilot_server_openai.py
+    Size: 12.47 KB, Hash: 257f8f7c
+  L4D2-AI-Architect/scripts/inference/generate_test_plugins.py
+    Size: 4.14 KB, Hash: aa6f6002
+  L4D2-AI-Architect/scripts/inference/l4d2_codegen.py
+    Size: 14.59 KB, Hash: 3d109afa
+  L4D2-AI-Architect/scripts/inference/rag_copilot.py
+    Size: 30.33 KB, Hash: 1a524cad
+  L4D2-AI-Architect/scripts/inference/test_lora.py
+    Size: 3.56 KB, Hash: 66ef5c34
+  L4D2-AI-Architect/scripts/inference/web_ui.py
+    Size: 35.88 KB, Hash: 1bdb9a95
+  L4D2-AI-Architect/scripts/rl_training/enhanced_mock_env.py
+    Size: 41.44 KB, Hash: 77d9ea23
+  L4D2-AI-Architect/scripts/rl_training/mnemosyne_env.py
+    Size: 17.11 KB, Hash: f180eb0e
+  L4D2-AI-Architect/scripts/rl_training/quick_ppo_test.py
+    Size: 11.90 KB, Hash: 08164196
+  L4D2-AI-Architect/scripts/rl_training/test_enhanced_env.py
+    Size: 16.14 KB, Hash: 55818df6
+  L4D2-AI-Architect/scripts/rl_training/train_all_personalities.py
+    Size: 27.39 KB, Hash: 64007e5e
+  L4D2-AI-Architect/scripts/rl_training/train_ppo.py
+    Size: 15.44 KB, Hash: 337357bd
+  L4D2-AI-Architect/scripts/scrapers/scrape_github_plugins.py
+    Size: 14.27 KB, Hash: 45d0d642
+  L4D2-AI-Architect/scripts/scrapers/scrape_valve_wiki.py
+    Size: 13.91 KB, Hash: 0b1d1a3c
+  L4D2-AI-Architect/scripts/training/check_finetune_status.py
+    Size: 3.52 KB, Hash: 508533a7
+  L4D2-AI-Architect/scripts/training/create_v11_dataset.py
+    Size: 7.82 KB, Hash: b5d297ad
+  L4D2-AI-Architect/scripts/training/create_v12_dataset.py
+    Size: 6.97 KB, Hash: 045b1c4e
+  L4D2-AI-Architect/scripts/training/export_gguf_cpu.py
+    Size: 12.57 KB, Hash: 6a213355
+  L4D2-AI-Architect/scripts/training/export_model.py
+    Size: 10.79 KB, Hash: 8df93b5c
+  L4D2-AI-Architect/scripts/training/generate_embeddings.py
+    Size: 16.07 KB, Hash: 00ea3080
+  L4D2-AI-Architect/scripts/training/generate_synthetic_data.py
+    Size: 19.13 KB, Hash: 991dbe5f
+  L4D2-AI-Architect/scripts/training/generate_v12_synthetic.py
+    Size: 127.38 KB, Hash: ad899c9b
+  L4D2-AI-Architect/scripts/training/generate_v13_massive.py
+    Size: 174.04 KB, Hash: 91d62af8
+  L4D2-AI-Architect/scripts/training/monitor_finetune.py
+    Size: 4.01 KB, Hash: 252c1434
+  L4D2-AI-Architect/scripts/training/monitor_v9_completion.py
+    Size: 3.70 KB, Hash: 0ba18030
+  L4D2-AI-Architect/scripts/training/prepare_dataset.py
+    Size: 21.97 KB, Hash: c59578d3
+  L4D2-AI-Architect/scripts/training/prepare_v9_dataset.py
+    Size: 5.16 KB, Hash: 73f8adc7
+  L4D2-AI-Architect/scripts/training/start_openai_finetune.py
+    Size: 5.51 KB, Hash: 9a6780d1
+  L4D2-AI-Architect/scripts/training/start_v9_finetune.py
+    Size: 2.64 KB, Hash: 07d9a460
+  L4D2-AI-Architect/scripts/training/train_runpod.py
+    Size: 9.72 KB, Hash: 960685f2
+  L4D2-AI-Architect/scripts/training/train_unsloth.py
+    Size: 16.14 KB, Hash: a21a0370
+  L4D2-AI-Architect/scripts/utils/clean_training_data.py
+    Size: 8.82 KB, Hash: 8de81f67
+  L4D2-AI-Architect/scripts/utils/create_contrastive_pairs.py
+    Size: 13.37 KB, Hash: f5db5e97
+  L4D2-AI-Architect/scripts/utils/create_deployment_package.py
+    Size: 28.35 KB, Hash: c0717a99
+  L4D2-AI-Architect/scripts/utils/filter_training_data.py
+    Size: 6.08 KB, Hash: d40ee361
+  L4D2-AI-Architect/scripts/utils/game_detection.py
+    Size: 23.77 KB, Hash: 2c9fa926
+  L4D2-AI-Architect/scripts/utils/generate_synthetic_examples.py
+    Size: 35.85 KB, Hash: 8f754911
+  L4D2-AI-Architect/scripts/utils/object_storage_sync.py
+    Size: 29.83 KB, Hash: 9b09c576
+  L4D2-AI-Architect/scripts/utils/preflight_check.py
+    Size: 6.28 KB, Hash: afcc17a1
+  L4D2-AI-Architect/scripts/utils/prepare_openai_finetune.py
+    Size: 6.59 KB, Hash: f7f88102
+  L4D2-AI-Architect/scripts/utils/sanitize_security_patterns.py
+    Size: 5.40 KB, Hash: 0ad02f67
+  L4D2-AI-Architect/scripts/utils/security.py
+    Size: 12.40 KB, Hash: f917813a
+  L4D2-AI-Architect/scripts/utils/validate_system.py
+    Size: 11.77 KB, Hash: 71a04a33
+  L4D2-AI-Architect/requirements.txt
+    Size: 2.16 KB, Hash: 47af3907
+  L4D2-AI-Architect/README_DEPLOY.md
+    Size: 2.88 KB, Hash: generated
+
+======================================================================
+LOCAL PACKAGE (local_package.tar.gz)
+======================================================================
+Total Size: 19.81 MB
+File Count: 98
+
+Files:
+  L4D2-AI-Architect/data/processed/combined_train.jsonl
+    Size: 871.67 KB, Hash: 3abbd91f
+  L4D2-AI-Architect/data/processed/combined_val.jsonl
+    Size: 102.73 KB, Hash: 114f13e1
+  L4D2-AI-Architect/data/processed/l4d2_combined_train.jsonl
+    Size: 984.50 KB, Hash: 61c6de2b
+  L4D2-AI-Architect/data/processed/l4d2_combined_train_fixed.jsonl
+    Size: 978.51 KB, Hash: 2a5aeb42
+  L4D2-AI-Architect/data/processed/l4d2_train_v10.jsonl
+    Size: 1.74 MB, Hash: 67d94776
+  L4D2-AI-Architect/data/processed/l4d2_train_v11.jsonl
+    Size: 1.74 MB, Hash: 67d94776
+  L4D2-AI-Architect/data/processed/l4d2_train_v12.jsonl
+    Size: 1.87 MB, Hash: f550d2ae
+  L4D2-AI-Architect/data/processed/l4d2_train_v13.jsonl
+    Size: 2.44 MB, Hash: 18d518c6
+  L4D2-AI-Architect/data/processed/synthetic_v10_advanced.jsonl
+    Size: 752.45 KB, Hash: ec9a6d67
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch10.jsonl
+    Size: 71.94 KB, Hash: c7d23179
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch11_final.jsonl
+    Size: 71.78 KB, Hash: 4a68b3f8
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch2.jsonl
+    Size: 54.20 KB, Hash: db719814
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch3.jsonl
+    Size: 65.79 KB, Hash: 580d656d
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch4.jsonl
+    Size: 60.04 KB, Hash: 50e37561
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch5.jsonl
+    Size: 66.47 KB, Hash: 2b6a4037
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch6.jsonl
+    Size: 68.68 KB, Hash: 2cc2eb1c
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch7.jsonl
+    Size: 64.62 KB, Hash: 1375066e
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch8.jsonl
+    Size: 84.47 KB, Hash: 886cceeb
+  L4D2-AI-Architect/data/processed/synthetic_v10_batch9.jsonl
+    Size: 65.36 KB, Hash: 66d7b4ac
+  L4D2-AI-Architect/data/processed/synthetic_v10_combined.jsonl
+    Size: 680.67 KB, Hash: 4998c5b1
+  L4D2-AI-Architect/data/processed/synthetic_v12_specialized.jsonl
+    Size: 140.77 KB, Hash: 193a96f5
+  L4D2-AI-Architect/data/processed/synthetic_v13_massive.jsonl
+    Size: 580.12 KB, Hash: b627b94d
+  L4D2-AI-Architect/configs/director_config.yaml
+    Size: 2.85 KB, Hash: 00adc43a
+  L4D2-AI-Architect/configs/unsloth_config.yaml
+    Size: 2.71 KB, Hash: b9184dfc
+  L4D2-AI-Architect/configs/unsloth_config_a100.yaml
+    Size: 3.03 KB, Hash: aeb05acb
+  L4D2-AI-Architect/configs/unsloth_config_gh200.yaml
+    Size: 2.97 KB, Hash: 61006bbd
+  L4D2-AI-Architect/configs/unsloth_config_qwen.yaml
+    Size: 2.92 KB, Hash: a1e5b69d
+  L4D2-AI-Architect/configs/unsloth_config_v12.yaml
+    Size: 3.09 KB, Hash: e562da83
+  L4D2-AI-Architect/configs/unsloth_config_v13.yaml
+    Size: 3.12 KB, Hash: 8e0e4702
+  L4D2-AI-Architect/scripts/director/__init__.py
+    Size: 40.00 B, Hash: eb423b50
+  L4D2-AI-Architect/scripts/director/bridge.py
+    Size: 13.47 KB, Hash: e24a5df5
+  L4D2-AI-Architect/scripts/director/director.py
+    Size: 13.41 KB, Hash: bb2527d7
+  L4D2-AI-Architect/scripts/director/policy.py
+    Size: 13.96 KB, Hash: 00487ce4
+  L4D2-AI-Architect/scripts/evaluation/automated_test.py
+    Size: 24.24 KB, Hash: 6c4aa39c
+  L4D2-AI-Architect/scripts/evaluation/benchmark_suite.py
+    Size: 57.63 KB, Hash: e7cedf1e
+  L4D2-AI-Architect/scripts/evaluation/compare_models.py
+    Size: 6.86 KB, Hash: 6382b4f7
+  L4D2-AI-Architect/scripts/evaluation/evaluate_models.py
+    Size: 14.97 KB, Hash: 20e20f2f
+  L4D2-AI-Architect/scripts/evaluation/model_dashboard.py
+    Size: 28.00 KB, Hash: 68c5544f
+  L4D2-AI-Architect/scripts/evaluation/openai_evals.py
+    Size: 20.36 KB, Hash: 53ab7991
+  L4D2-AI-Architect/scripts/evaluation/run_tinyllama_eval.py
+    Size: 4.73 KB, Hash: 056ba93a
+  L4D2-AI-Architect/scripts/evaluation/test_qwen_model.py
+    Size: 10.47 KB, Hash: 7234209e
+  L4D2-AI-Architect/scripts/evaluation/test_tinyllama.py
+    Size: 1.06 KB, Hash: 06849ef6
+  L4D2-AI-Architect/scripts/evaluation/validate_generated_code.py
+    Size: 30.73 KB, Hash: 52c9a203
+  L4D2-AI-Architect/scripts/inference/__init__.py
+    Size: 37.00 B, Hash: e43155cd
+  L4D2-AI-Architect/scripts/inference/copilot_cli.py
+    Size: 20.44 KB, Hash: b58becd0
+  L4D2-AI-Architect/scripts/inference/copilot_server.py
+    Size: 12.49 KB, Hash: e0532a13
+  L4D2-AI-Architect/scripts/inference/copilot_server_openai.py
+    Size: 12.47 KB, Hash: 257f8f7c
+  L4D2-AI-Architect/scripts/inference/generate_test_plugins.py
+    Size: 4.14 KB, Hash: aa6f6002
+  L4D2-AI-Architect/scripts/inference/l4d2_codegen.py
+    Size: 14.59 KB, Hash: 3d109afa
+  L4D2-AI-Architect/scripts/inference/rag_copilot.py
+    Size: 30.33 KB, Hash: 1a524cad
+  L4D2-AI-Architect/scripts/inference/test_lora.py
+    Size: 3.56 KB, Hash: 66ef5c34
+  L4D2-AI-Architect/scripts/inference/web_ui.py
+    Size: 35.88 KB, Hash: 1bdb9a95
+  L4D2-AI-Architect/scripts/rl_training/enhanced_mock_env.py
+    Size: 41.44 KB, Hash: 77d9ea23
+  L4D2-AI-Architect/scripts/rl_training/mnemosyne_env.py
+    Size: 17.11 KB, Hash: f180eb0e
+  L4D2-AI-Architect/scripts/rl_training/quick_ppo_test.py
+    Size: 11.90 KB, Hash: 08164196
+  L4D2-AI-Architect/scripts/rl_training/test_enhanced_env.py
+    Size: 16.14 KB, Hash: 55818df6
+  L4D2-AI-Architect/scripts/rl_training/train_all_personalities.py
+    Size: 27.39 KB, Hash: 64007e5e
+  L4D2-AI-Architect/scripts/rl_training/train_ppo.py
+    Size: 15.44 KB, Hash: 337357bd
+  L4D2-AI-Architect/scripts/scrapers/scrape_github_plugins.py
+    Size: 14.27 KB, Hash: 45d0d642
+  L4D2-AI-Architect/scripts/scrapers/scrape_valve_wiki.py
+    Size: 13.91 KB, Hash: 0b1d1a3c
+  L4D2-AI-Architect/scripts/training/check_finetune_status.py
+    Size: 3.52 KB, Hash: 508533a7
+  L4D2-AI-Architect/scripts/training/create_v11_dataset.py
+    Size: 7.82 KB, Hash: b5d297ad
+  L4D2-AI-Architect/scripts/training/create_v12_dataset.py
+    Size: 6.97 KB, Hash: 045b1c4e
+  L4D2-AI-Architect/scripts/training/export_gguf_cpu.py
+    Size: 12.57 KB, Hash: 6a213355
+  L4D2-AI-Architect/scripts/training/export_model.py
+    Size: 10.79 KB, Hash: 8df93b5c
+  L4D2-AI-Architect/scripts/training/generate_embeddings.py
+    Size: 16.07 KB, Hash: 00ea3080
+  L4D2-AI-Architect/scripts/training/generate_synthetic_data.py
+    Size: 19.13 KB, Hash: 991dbe5f
+  L4D2-AI-Architect/scripts/training/generate_v12_synthetic.py
+    Size: 127.38 KB, Hash: ad899c9b
+  L4D2-AI-Architect/scripts/training/generate_v13_massive.py
+    Size: 174.04 KB, Hash: 91d62af8
+  L4D2-AI-Architect/scripts/training/monitor_finetune.py
+    Size: 4.01 KB, Hash: 252c1434
+  L4D2-AI-Architect/scripts/training/monitor_v9_completion.py
+    Size: 3.70 KB, Hash: 0ba18030
+  L4D2-AI-Architect/scripts/training/prepare_dataset.py
+    Size: 21.97 KB, Hash: c59578d3
+  L4D2-AI-Architect/scripts/training/prepare_v9_dataset.py
+    Size: 5.16 KB, Hash: 73f8adc7
+  L4D2-AI-Architect/scripts/training/start_openai_finetune.py
+    Size: 5.51 KB, Hash: 9a6780d1
+  L4D2-AI-Architect/scripts/training/start_v9_finetune.py
+    Size: 2.64 KB, Hash: 07d9a460
+  L4D2-AI-Architect/scripts/training/train_runpod.py
+    Size: 9.72 KB, Hash: 960685f2
+  L4D2-AI-Architect/scripts/training/train_unsloth.py
+    Size: 16.14 KB, Hash: a21a0370
+  L4D2-AI-Architect/scripts/utils/clean_training_data.py
+    Size: 8.82 KB, Hash: 8de81f67
+  L4D2-AI-Architect/scripts/utils/create_contrastive_pairs.py
+    Size: 13.37 KB, Hash: f5db5e97
+  L4D2-AI-Architect/scripts/utils/create_deployment_package.py
+    Size: 28.35 KB, Hash: c0717a99
+  L4D2-AI-Architect/scripts/utils/filter_training_data.py
+    Size: 6.08 KB, Hash: d40ee361
+  L4D2-AI-Architect/scripts/utils/game_detection.py
+    Size: 23.77 KB, Hash: 2c9fa926
+  L4D2-AI-Architect/scripts/utils/generate_synthetic_examples.py
+    Size: 35.85 KB, Hash: 8f754911
+  L4D2-AI-Architect/scripts/utils/object_storage_sync.py
+    Size: 29.83 KB, Hash: 9b09c576
+  L4D2-AI-Architect/scripts/utils/preflight_check.py
+    Size: 6.28 KB, Hash: afcc17a1
+  L4D2-AI-Architect/scripts/utils/prepare_openai_finetune.py
+    Size: 6.59 KB, Hash: f7f88102
+  L4D2-AI-Architect/scripts/utils/sanitize_security_patterns.py
+    Size: 5.40 KB, Hash: 0ad02f67
+  L4D2-AI-Architect/scripts/utils/security.py
+    Size: 12.40 KB, Hash: f917813a
+  L4D2-AI-Architect/scripts/utils/validate_system.py
+    Size: 11.77 KB, Hash: 71a04a33
+  L4D2-AI-Architect/requirements.txt
+    Size: 2.16 KB, Hash: 47af3907
+  L4D2-AI-Architect/data/embeddings/responses.npy
+    Size: 1.18 MB, Hash: fd3152b4
+  L4D2-AI-Architect/data/embeddings/metadata.json
+    Size: 422.91 KB, Hash: 742602bc
+  L4D2-AI-Architect/data/embeddings/faiss_index.bin
+    Size: 1.18 MB, Hash: f10a99e1
+  L4D2-AI-Architect/data/embeddings/prompts.npy
+    Size: 1.18 MB, Hash: f92caead
+  L4D2-AI-Architect/data/embeddings/combined.npy
+    Size: 1.18 MB, Hash: 75990385
+  L4D2-AI-Architect/data/eval_results_v8.json
+    Size: 67.61 KB, Hash: 82c567a2
+  L4D2-AI-Architect/data/eval_results.json
+    Size: 40.41 KB, Hash: 349d3a7e
+  L4D2-AI-Architect/README_DEPLOY.md
+    Size: 2.88 KB, Hash: generated
+
+======================================================================
+VALIDATION SUMMARY
+======================================================================
+
+Training Data: VALID
+  Samples: 1010
+
+Config Files: VALID
+  Count: 7
+
+Python Scripts: VALID
+  Count: 60
+
+Requirements: VALID
+
+======================================================================

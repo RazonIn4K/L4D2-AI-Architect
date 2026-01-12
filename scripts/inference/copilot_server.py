@@ -89,13 +89,13 @@ class CopilotServer:
             version="1.0.0"
         )
         
-        # Add CORS
+        # Add CORS - restricted to localhost for security
         self.app.add_middleware(
             CORSMiddleware,
-            allow_origins=["*"],
-            allow_credentials=True,
-            allow_methods=["*"],
-            allow_headers=["*"],
+            allow_origins=["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000", "http://127.0.0.1:8000"],
+            allow_credentials=False,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Content-Type"],
         )
         
         # Setup routes
@@ -106,22 +106,22 @@ class CopilotServer:
         logger.info(f"Loading model from {self.model_path}")
         
         try:
-            # Load tokenizer
+            # Load tokenizer (trust_remote_code disabled for security)
             self.tokenizer = AutoTokenizer.from_pretrained(
                 self.base_model,
-                trust_remote_code=True
+                trust_remote_code=False
             )
             
             # Add special tokens if needed
             if self.tokenizer.pad_token is None:
                 self.tokenizer.pad_token = self.tokenizer.eos_token
             
-            # Load base model
+            # Load base model (trust_remote_code disabled for security)
             base_model = AutoModelForCausalLM.from_pretrained(
                 self.base_model,
                 torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                 device_map="auto" if self.device == "cuda" else None,
-                trust_remote_code=True,
+                trust_remote_code=False,
                 load_in_4bit=True if self.device == "cuda" else False
             )
             
@@ -186,7 +186,7 @@ class CopilotServer:
                 
             except Exception as e:
                 logger.error(f"Generation error: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Code generation failed. Check server logs for details.")
         
         @self.app.post("/v1/chat")
         async def chat_completion(request: dict):
@@ -223,7 +223,7 @@ class CopilotServer:
                 
             except Exception as e:
                 logger.error(f"Chat error: {e}")
-                raise HTTPException(status_code=500, detail=str(e))
+                raise HTTPException(status_code=500, detail="Chat completion failed. Check server logs for details.")
     
     def _format_prompt(self, prompt: str, language: str) -> str:
         """Format prompt based on programming language"""
@@ -336,8 +336,8 @@ Complete the following code:
 def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description="L4D2 Copilot Inference Server")
-    parser.add_argument("--model-path", type=str, 
-                       default="./model_adapters/l4d2-code-lora",
+    parser.add_argument("--model-path", type=str,
+                       default="./model_adapters/l4d2-mistral-v10plus-lora/final",
                        help="Path to fine-tuned model")
     parser.add_argument("--base-model", type=str,
                        default="unsloth/mistral-7b-instruct-v0.3-bnb-4bit",

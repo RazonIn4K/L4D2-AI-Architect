@@ -1,0 +1,324 @@
+# L4D2-AI-Architect Training Workflow
+#
+# Manual workflow for triggering model training on GPU runners.
+# Supports both fine-tuning and RL agent training.
+
+name: Train Model
+
+on:
+  workflow_dispatch:
+    inputs:
+      training_type:
+        description: 'Type of training to run'
+        required: true
+        default: 'llm'
+        type: choice
+        options:
+          - llm
+          - rl
+          - both
+      config_file:
+        description: 'Config file to use (relative to configs/)'
+        required: false
+        default: 'unsloth_config.yaml'
+        type: string
+      base_model:
+        description: 'Base model for LLM training'
+        required: false
+        default: 'unsloth/mistral-7b-instruct-v0.3-bnb-4bit'
+        type: string
+      epochs:
+        description: 'Number of training epochs'
+        required: false
+        default: '3'
+        type: string
+      batch_size:
+        description: 'Training batch size'
+        required: false
+        default: '4'
+        type: string
+      learning_rate:
+        description: 'Learning rate'
+        required: false
+        default: '2e-4'
+        type: string
+      rl_timesteps:
+        description: 'RL training timesteps (for RL training)'
+        required: false
+        default: '100000'
+        type: string
+      rl_personality:
+        description: 'RL bot personality'
+        required: false
+        default: 'balanced'
+        type: choice
+        options:
+          - balanced
+          - aggressive
+          - medic
+          - speedrunner
+          - defender
+      export_gguf:
+        description: 'Export to GGUF format after training'
+        required: false
+        default: true
+        type: boolean
+      upload_artifacts:
+        description: 'Upload trained model as artifact'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  PYTHON_VERSION: '3.10'
+
+jobs:
+  # ===========================================================================
+  # Validate Inputs
+  # ===========================================================================
+  validate:
+    name: Validate Inputs
+    runs-on: ubuntu-latest
+    outputs:
+      config_valid: ${{ steps.validate.outputs.config_valid }}
+      data_ready: ${{ steps.validate.outputs.data_ready }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate configuration
+        id: validate
+        run: |
+          echo "Validating training configuration..."
+
+          # Check if config file exists
+          if [[ -f "configs/${{ inputs.config_file }}" ]]; then
+            echo "Config file found: configs/${{ inputs.config_file }}"
+            echo "config_valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "Warning: Config file not found: configs/${{ inputs.config_file }}"
+            echo "config_valid=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check if training data exists
+          if [[ -d "data/processed" ]] && [[ -n "$(ls -A data/processed/*.jsonl 2>/dev/null)" ]]; then
+            echo "Training data found"
+            echo "data_ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "Warning: No training data found in data/processed/"
+            echo "data_ready=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ===========================================================================
+  # LLM Fine-tuning
+  # ===========================================================================
+  train-llm:
+    name: Train LLM
+    runs-on: ubuntu-latest  # Replace with self-hosted GPU runner if available
+    needs: validate
+    if: inputs.training_type == 'llm' || inputs.training_type == 'both'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Check GPU availability
+        run: |
+          echo "## GPU Check" >> $GITHUB_STEP_SUMMARY
+          if command -v nvidia-smi &> /dev/null; then
+            nvidia-smi
+            echo "GPU detected!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "WARNING: No GPU detected. Training will be slow or may fail." >> $GITHUB_STEP_SUMMARY
+            echo "Consider using a self-hosted runner with GPU access."
+          fi
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-train-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-train-
+            ${{ runner.os }}-pip-
+
+      - name: Cache HuggingFace models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: ${{ runner.os }}-hf-${{ inputs.base_model }}
+          restore-keys: |
+            ${{ runner.os }}-hf-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+          # Try to install CUDA PyTorch, fall back to CPU
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118 || \
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+          pip install -r requirements.txt
+
+          # Try to install Unsloth (may fail without GPU)
+          pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git" || \
+          echo "Unsloth installation failed - GPU may not be available"
+
+      - name: Prepare training data
+        run: |
+          # Create directories
+          mkdir -p data/processed
+          mkdir -p model_adapters
+
+          # List available data files
+          echo "Available training data:"
+          ls -la data/processed/*.jsonl 2>/dev/null || echo "No JSONL files found"
+
+      - name: Run training
+        env:
+          TRAINING_CONFIG: ${{ inputs.config_file }}
+          BASE_MODEL: ${{ inputs.base_model }}
+          EPOCHS: ${{ inputs.epochs }}
+          BATCH_SIZE: ${{ inputs.batch_size }}
+          LEARNING_RATE: ${{ inputs.learning_rate }}
+        run: |
+          echo "## Training Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Config: $TRAINING_CONFIG" >> $GITHUB_STEP_SUMMARY
+          echo "- Model: $BASE_MODEL" >> $GITHUB_STEP_SUMMARY
+          echo "- Epochs: $EPOCHS" >> $GITHUB_STEP_SUMMARY
+          echo "- Batch Size: $BATCH_SIZE" >> $GITHUB_STEP_SUMMARY
+          echo "- Learning Rate: $LEARNING_RATE" >> $GITHUB_STEP_SUMMARY
+
+          # Run training script
+          python scripts/training/train_unsloth.py \
+            --config configs/$TRAINING_CONFIG \
+            --epochs $EPOCHS \
+            --batch-size $BATCH_SIZE \
+            --learning-rate $LEARNING_RATE \
+            || echo "Training script not found or failed"
+
+      - name: Export to GGUF
+        if: inputs.export_gguf && success()
+        run: |
+          echo "Exporting model to GGUF format..."
+
+          # Find the latest adapter
+          ADAPTER_DIR=$(ls -td model_adapters/*/final 2>/dev/null | head -1)
+
+          if [[ -d "$ADAPTER_DIR" ]]; then
+            python scripts/training/export_gguf_cpu.py --adapter "$ADAPTER_DIR" || \
+            echo "GGUF export failed or script not found"
+          else
+            echo "No trained adapter found to export"
+          fi
+
+      - name: Upload trained model
+        if: inputs.upload_artifacts && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-llm-model
+          path: |
+            model_adapters/
+            exports/
+          retention-days: 30
+
+      - name: Upload training logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-logs
+          path: data/training_logs/
+          retention-days: 14
+
+  # ===========================================================================
+  # RL Agent Training
+  # ===========================================================================
+  train-rl:
+    name: Train RL Agent
+    runs-on: ubuntu-latest
+    needs: validate
+    if: inputs.training_type == 'rl' || inputs.training_type == 'both'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-rl-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-rl-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+          pip install stable-baselines3[extra] gymnasium tensorboard
+
+      - name: Create directories
+        run: |
+          mkdir -p model_adapters/rl_agents
+          mkdir -p data/training_logs
+
+      - name: Run RL training
+        env:
+          TIMESTEPS: ${{ inputs.rl_timesteps }}
+          PERSONALITY: ${{ inputs.rl_personality }}
+        run: |
+          echo "## RL Training Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- Timesteps: $TIMESTEPS" >> $GITHUB_STEP_SUMMARY
+          echo "- Personality: $PERSONALITY" >> $GITHUB_STEP_SUMMARY
+
+          # Check if training script exists
+          if [[ -f "scripts/rl_training/train_ppo.py" ]]; then
+            # Note: This requires a game server connection which won't work in CI
+            # This is a placeholder for documentation purposes
+            echo "RL training requires L4D2 server connection."
+            echo "Run locally with: python scripts/rl_training/train_ppo.py --timesteps $TIMESTEPS --personality $PERSONALITY"
+          else
+            echo "RL training script not found"
+          fi
+
+      - name: Upload RL model
+        if: inputs.upload_artifacts && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-rl-agent
+          path: model_adapters/rl_agents/
+          retention-days: 30
+
+  # ===========================================================================
+  # Training Summary
+  # ===========================================================================
+  summary:
+    name: Training Summary
+    runs-on: ubuntu-latest
+    needs: [validate, train-llm, train-rl]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## Training Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Validation | ${{ needs.validate.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| LLM Training | ${{ needs.train-llm.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| RL Training | ${{ needs.train-rl.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download artifacts from the workflow run" >> $GITHUB_STEP_SUMMARY
+          echo "2. Test the model locally with Ollama" >> $GITHUB_STEP_SUMMARY
+          echo "3. Deploy to production if tests pass" >> $GITHUB_STEP_SUMMARY

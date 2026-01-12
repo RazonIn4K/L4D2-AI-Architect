@@ -1,0 +1,147 @@
+# L4D2-AI-Architect: Llama-3-8B Training Configuration
+#
+# Optimized for Vultr A100 (40GB VRAM) with Llama-3-8B-Instruct
+#
+# Why Llama-3:
+#   - Newer architecture with improved reasoning
+#   - Better at following complex instructions
+#   - Strong performance on code-related tasks
+#   - 8B parameters (slightly larger than 7B models)
+#   - Improved tokenizer over Llama-2
+#
+# Performance expectations:
+#   - Superior reasoning for complex plugin logic
+#   - Better understanding of multi-step instructions
+#   - Excellent at L4D2-specific domain knowledge
+#   - May have slightly longer training time due to 8B params
+#
+# Batch size recommendations:
+#   - A100 40GB: batch_size=6, gradient_accumulation=3 (this config)
+#   - A40 48GB: batch_size=4, gradient_accumulation=4
+#   - RTX 4090 24GB: batch_size=2, gradient_accumulation=8
+#   - Note: 8B model uses slightly more memory than 7B
+
+model:
+  # Base model - Llama-3-8B-Instruct (4-bit quantized)
+  name: "unsloth/llama-3-8b-instruct-bnb-4bit"
+
+  # Context window - Llama-3 supports up to 8K
+  max_seq_length: 4096
+
+  # Auto-detect dtype (will use bf16 on A100)
+  dtype: null
+
+  # 4-bit quantization for memory efficiency
+  load_in_4bit: true
+
+lora:
+  # LoRA rank - balanced for instruction following
+  r: 32
+
+  # Alpha = 2x rank
+  lora_alpha: 64
+
+  # No dropout - Unsloth optimized
+  lora_dropout: 0
+
+  # Target all attention and MLP layers
+  # Llama-3 uses the same architecture naming
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+  bias: "none"
+
+  # Unsloth gradient checkpointing
+  use_gradient_checkpointing: "unsloth"
+
+  # Standard LoRA
+  use_rslora: false
+
+training:
+  # Training epochs
+  num_train_epochs: 3
+
+  # A100 40GB optimized batch size
+  # Slightly lower than 7B models due to 8B parameter size
+  per_device_train_batch_size: 6
+
+  # Effective batch = 6 * 3 = 18
+  gradient_accumulation_steps: 3
+
+  # Learning rate - standard for QLoRA
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_steps: 50
+  lr_scheduler_type: "cosine"
+
+  # 8-bit AdamW optimizer
+  optim: "adamw_8bit"
+
+  # Use BF16 on A100
+  fp16: false
+  bf16: true
+
+  # Logging frequency
+  logging_steps: 10
+
+  # Checkpoint every 100 steps
+  save_steps: 100
+  save_total_limit: 3
+
+  # Reproducibility
+  seed: 3407
+
+  # Gradient clipping
+  max_grad_norm: 1.0
+
+data:
+  # Training data - V13 dataset
+  train_file: "l4d2_train_v13.jsonl"
+
+  # Validation data
+  val_file: "combined_val.jsonl"
+
+  # Use all samples
+  max_samples: null
+
+output:
+  # Output directory
+  dir: "l4d2-llama3-v13-lora"
+
+  # Hub settings
+  push_to_hub: false
+  hub_model_id: null
+
+# A100-specific optimizations
+advanced:
+  # Flash Attention 2
+  use_flash_attention_2: true
+
+  # Multi-worker data loading
+  dataloader_num_workers: 4
+
+  # Pin memory for faster transfers
+  dataloader_pin_memory: true
+
+  # TF32 acceleration
+  tf32: true
+
+# Monitoring
+monitoring:
+  report_to: "tensorboard"
+  logging_dir: "data/training_logs"
+  evaluation_strategy: "steps"
+  eval_steps: 100
+
+# Expected performance on A100 40GB:
+# - Training time for ~1010 samples (3 epochs): ~2-2.5 hours
+# - Memory usage: ~35-38GB peak (8B model)
+# - Excellent instruction following
+# - Strong reasoning for complex plugin logic
+# - Estimated cost: ~$2.00-2.50

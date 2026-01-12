@@ -1,0 +1,140 @@
+# L4D2-AI-Architect: Unsloth Training Configuration
+#
+# Optimized for Vultr 1/2 NVIDIA A100 (40GB VRAM)
+# Dataset Version: V13 (1010 examples - comprehensive coverage)
+#
+# Key A100 advantages over A40:
+#   - 2.3x higher memory bandwidth (1.6 TB/s vs 696 GB/s)
+#   - 2x higher FP16 performance (312 vs 150 TFLOPS)
+#   - Native BF16 support (better numerical stability)
+#   - TF32 acceleration for faster matmul
+#
+# Batch size recommendations:
+#   - A100 40GB: batch_size=8, gradient_accumulation=2 (this config)
+#   - A40 48GB: batch_size=4, gradient_accumulation=4
+#   - If OOM: reduce batch_size to 4
+
+model:
+  # Base model - 4-bit quantized Mistral
+  name: "unsloth/mistral-7b-instruct-v0.3-bnb-4bit"
+
+  # Double context vs A40 config - A100 handles this well
+  max_seq_length: 4096
+
+  # Auto-detect dtype (will use bf16 on A100)
+  dtype: null
+
+  # 4-bit quantization for memory efficiency
+  load_in_4bit: true
+
+lora:
+  # LoRA rank - moderate for good capacity/speed balance
+  r: 32
+
+  # Alpha = 2x rank
+  lora_alpha: 64
+
+  # No dropout - Unsloth optimized
+  lora_dropout: 0
+
+  # Target all attention and MLP layers
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+  bias: "none"
+
+  # Unsloth gradient checkpointing
+  use_gradient_checkpointing: "unsloth"
+
+  # Standard LoRA (rsLoRA can be unstable)
+  use_rslora: false
+
+training:
+  # Training epochs
+  num_train_epochs: 3
+
+  # A100 40GB optimized: Higher batch size than A40
+  # Memory budget: ~35GB of 40GB available
+  per_device_train_batch_size: 8
+
+  # Reduced accumulation (effective batch still = 16)
+  gradient_accumulation_steps: 2
+
+  # Learning rate
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_steps: 50
+  lr_scheduler_type: "cosine"
+
+  # 8-bit AdamW optimizer
+  optim: "adamw_8bit"
+
+  # CRITICAL: Use BF16 on A100 (better than FP16)
+  # A100 has native BF16 support with better numerical range
+  fp16: false
+  bf16: true
+
+  # Logging frequency
+  logging_steps: 10
+
+  # Checkpoint every 100 steps
+  save_steps: 100
+  save_total_limit: 3
+
+  # Reproducibility
+  seed: 3407
+
+  # Gradient clipping
+  max_grad_norm: 1.0
+
+data:
+  # Training data - V13 dataset
+  train_file: "l4d2_train_v13.jsonl"
+
+  # Validation data
+  val_file: "combined_val.jsonl"
+
+  # Use all samples
+  max_samples: null
+
+output:
+  # Output directory - V13 model
+  dir: "l4d2-mistral-v13-lora"
+
+  # Hub settings
+  push_to_hub: false
+  hub_model_id: null
+
+# A100-specific optimizations
+advanced:
+  # Flash Attention 2 - significant speedup on A100
+  use_flash_attention_2: true
+
+  # Utilize A100's parallel CPU processing (6 vCPUs on Vultr)
+  dataloader_num_workers: 4
+
+  # Pin memory for faster GPU transfers
+  dataloader_pin_memory: true
+
+  # TF32 - A100 can accelerate matmul with TF32
+  tf32: true
+
+# Monitoring
+monitoring:
+  report_to: "tensorboard"
+  logging_dir: "data/training_logs"
+  evaluation_strategy: "steps"
+  eval_steps: 100
+
+# Expected performance on A100 40GB:
+# - Training speed: ~2x faster than A40 48GB
+# - Memory usage: ~35GB peak (of 40GB)
+# - Throughput: ~800-1000 tokens/sec
+# - Estimated time for 1010 samples (3 epochs): ~1.5-2 hours
+# - Estimated cost: ~$1.50-2.00

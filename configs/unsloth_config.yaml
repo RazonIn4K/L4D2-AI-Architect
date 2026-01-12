@@ -107,7 +107,7 @@ data:
 
 output:
   # Output directory name (in model_adapters/)
-  dir: "l4d2-code-lora"
+  dir: "l4d2-mistral-v10plus-lora"
   
   # Push to HuggingFace Hub
   push_to_hub: false

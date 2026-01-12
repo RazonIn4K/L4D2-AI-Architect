@@ -1,0 +1,136 @@
+# L4D2 Model Server Configuration
+#
+# This configuration file controls the production model serving infrastructure.
+# Use with: python scripts/inference/model_server.py --config configs/model_server.yaml
+
+# =============================================================================
+# Backend Configuration
+# =============================================================================
+
+# List of backends to enable (in priority order for load balancing)
+# Available: ollama, openai, vllm, transformers
+backends:
+  - ollama
+  # - openai    # Uncomment to enable OpenAI backend
+  # - vllm      # Uncomment to enable vLLM backend
+  # - transformers  # Uncomment for local transformers fallback
+
+# Backend-specific configurations
+backend_configs:
+  ollama:
+    # Ollama server URL
+    base_url: "http://localhost:11434"
+    # Default model for completions
+    model: "l4d2-code-v10plus"
+
+  openai:
+    # Default model (API key from OPENAI_API_KEY env var)
+    model: "gpt-3.5-turbo"
+    # Model for embeddings
+    embedding_model: "text-embedding-3-small"
+    # Optional: Override API key (not recommended, use env var)
+    # api_key: "sk-..."
+
+  vllm:
+    # vLLM server URL
+    base_url: "http://localhost:8001"
+    # Default model served by vLLM
+    model: "mistralai/Mistral-7B-Instruct-v0.3"
+
+  transformers:
+    # Path to fine-tuned LoRA adapter
+    model_path: "model_adapters/l4d2-mistral-v10plus-lora/final"
+    # Base model for LoRA
+    base_model: "unsloth/mistral-7b-instruct-v0.3-bnb-4bit"
+
+# =============================================================================
+# Cache Configuration
+# =============================================================================
+
+cache:
+  # Enable/disable caching
+  enabled: true
+
+  # Cache TTL in seconds (default: 1 hour)
+  ttl: 3600
+
+  # Maximum in-memory cache entries
+  max_size: 1000
+
+  # Redis URL (optional, for distributed caching)
+  # redis_url: "redis://localhost:6379"
+  # redis_prefix: "l4d2_model_server:"
+
+# =============================================================================
+# Rate Limiting
+# =============================================================================
+
+rate_limit:
+  # Requests per minute per client
+  per_minute: 60
+
+  # Requests per hour per client
+  per_hour: 1000
+
+  # Burst size for token bucket
+  burst_size: 10
+
+# =============================================================================
+# Server Configuration
+# =============================================================================
+
+server:
+  # Server host
+  host: "0.0.0.0"
+
+  # Server port
+  port: 8000
+
+  # Number of uvicorn workers (for production)
+  # workers: 4
+
+  # Enable access logging
+  access_log: true
+
+# =============================================================================
+# Logging
+# =============================================================================
+
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+
+  # Log format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# =============================================================================
+# Production Deployment Notes
+# =============================================================================
+#
+# For production deployment:
+#
+# 1. Use Redis for distributed caching:
+#    cache:
+#      redis_url: "redis://redis:6379"
+#
+# 2. Run with gunicorn for multiple workers:
+#    gunicorn scripts.inference.model_server:app -w 4 -k uvicorn.workers.UvicornWorker
+#
+# 3. Set up reverse proxy (nginx/traefik) for:
+#    - SSL termination
+#    - Additional rate limiting
+#    - Request buffering
+#
+# 4. Monitor with Prometheus/Grafana:
+#    - Use /metrics endpoint for scraping
+#    - Set up alerts for error rates and latency
+#
+# 5. Enable OpenAI as fallback:
+#    backends:
+#      - ollama
+#      - openai
+#
+# 6. For high-throughput, use vLLM:
+#    backends:
+#      - vllm
+#      - ollama  # fallback

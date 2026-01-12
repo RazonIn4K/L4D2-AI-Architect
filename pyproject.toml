@@ -1,0 +1,230 @@
+# L4D2-AI-Architect Project Configuration
+#
+# This file configures Python tooling for the project.
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "l4d2-ai-architect"
+version = "1.0.0"
+description = "Train specialized AI models for Left 4 Dead 2 modding"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "RazonIn4K"}
+]
+keywords = ["l4d2", "left4dead2", "ai", "machine-learning", "modding", "sourcepawn"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Games/Entertainment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+# SDK minimal dependencies (for pip install l4d2-copilot-sdk)
+sdk = [
+    "requests>=2.31.0",
+]
+# SDK with async support
+sdk-async = [
+    "requests>=2.31.0",
+    "httpx>=0.25.0",
+]
+# SDK with OpenAI backend
+sdk-openai = [
+    "requests>=2.31.0",
+    "openai>=1.0.0",
+]
+# SDK complete (all backends and features)
+sdk-full = [
+    "requests>=2.31.0",
+    "httpx>=0.25.0",
+    "openai>=1.0.0",
+]
+
+[project.scripts]
+l4d2-copilot = "scripts.inference.copilot_cli:main"
+
+[project.urls]
+Homepage = "https://github.com/RazonIn4K/L4D2-AI-Architect"
+Documentation = "https://github.com/RazonIn4K/L4D2-AI-Architect#readme"
+Repository = "https://github.com/RazonIn4K/L4D2-AI-Architect.git"
+Issues = "https://github.com/RazonIn4K/L4D2-AI-Architect/issues"
+
+# ==============================================================================
+# Black Configuration
+# ==============================================================================
+[tool.black]
+line-length = 120
+target-version = ['py310', 'py311', 'py312']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+    \.git
+    | \.pytest_cache
+    | __pycache__
+    | venv
+    | \.venv
+    | build
+    | dist
+    | model_adapters
+    | exports
+    | data
+    | notebooks
+)/
+'''
+
+# ==============================================================================
+# isort Configuration
+# ==============================================================================
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
+skip = [
+    ".git",
+    "__pycache__",
+    ".pytest_cache",
+    "venv",
+    ".venv",
+    "build",
+    "dist",
+    "model_adapters",
+    "exports",
+    "data",
+    "notebooks",
+]
+known_first_party = ["scripts", "utils"]
+known_third_party = [
+    "torch",
+    "transformers",
+    "datasets",
+    "peft",
+    "trl",
+    "unsloth",
+    "stable_baselines3",
+    "gymnasium",
+    "numpy",
+    "pandas",
+    "yaml",
+    "fastapi",
+    "pydantic",
+]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
+default_section = "THIRDPARTY"
+force_single_line = false
+combine_as_imports = true
+
+# ==============================================================================
+# pytest Configuration
+# ==============================================================================
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = [
+    "-ra",
+    "-q",
+    "--strict-markers",
+    "--ignore=data",
+    "--ignore=model_adapters",
+    "--ignore=exports",
+    "--ignore=notebooks",
+    "--ignore=venv",
+]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "gpu: marks tests that require GPU",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]
+timeout = 300
+
+# ==============================================================================
+# Coverage Configuration
+# ==============================================================================
+[tool.coverage.run]
+source = ["scripts"]
+branch = true
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+    "scripts/runpod/*",
+    "scripts/vultr/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "if typing.TYPE_CHECKING:",
+]
+fail_under = 0
+show_missing = true
+skip_covered = true
+
+[tool.coverage.html]
+directory = "htmlcov"
+
+# ==============================================================================
+# Bandit Security Configuration
+# ==============================================================================
+[tool.bandit]
+exclude_dirs = [
+    "tests",
+    "venv",
+    ".venv",
+    "data",
+    "model_adapters",
+    "exports",
+]
+skips = [
+    "B101",  # assert_used - OK in tests
+    "B311",  # random - OK for non-crypto uses
+]
+
+# ==============================================================================
+# mypy Configuration (Optional Type Checking)
+# ==============================================================================
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = [
+    "venv",
+    ".venv",
+    "data",
+    "model_adapters",
+    "exports",
+    "notebooks",
+]
+
+# ==============================================================================
+# Setuptools Configuration
+# ==============================================================================
+[tool.setuptools]
+packages = ["scripts", "scripts.inference", "scripts.utils", "scripts.training", "scripts.scrapers", "scripts.rl_training", "scripts.director"]
+package-dir = {"" = "."}
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json"]

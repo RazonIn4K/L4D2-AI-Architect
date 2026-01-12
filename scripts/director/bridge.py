@@ -4,6 +4,9 @@ Game Bridge Module
 
 Handles communication between Python and the L4D2 SourceMod plugin.
 Supports TCP, UDP, and HTTP protocols.
+
+Also provides factory functions to create appropriate bridge types
+(GameBridge for live servers, SimulationBridge for testing).
 """
 
 import json
@@ -11,9 +14,13 @@ import time
 import logging
 import socket
 import threading
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional, Callable, Union, TYPE_CHECKING
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 import queue
+
+if TYPE_CHECKING:
+    from .simulation import SimulationBridge, SimulationConfig
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +36,51 @@ class BridgeConfig:
     max_retries: int = 5
 
 
-class GameBridge:
+class BaseBridge(ABC):
+    """Abstract base class for all bridge implementations"""
+
+    @abstractmethod
+    def connect(self) -> bool:
+        """Connect to the game/simulation"""
+        pass
+
+    @abstractmethod
+    def disconnect(self):
+        """Disconnect from the game/simulation"""
+        pass
+
+    @abstractmethod
+    def get_game_state(self) -> Optional[Dict[str, Any]]:
+        """Get current game state"""
+        pass
+
+    @abstractmethod
+    def send_director_command(self, command_type: str, parameters: Dict[str, Any]):
+        """Send a director command"""
+        pass
+
+    @abstractmethod
+    def send_bot_action(self, bot_id: int, action: str, **kwargs):
+        """Send a bot action"""
+        pass
+
+    @abstractmethod
+    def reset_episode(self):
+        """Reset the current episode"""
+        pass
+
+    @abstractmethod
+    def add_state_callback(self, callback: Callable[[Dict[str, Any]], None]):
+        """Add callback for state updates"""
+        pass
+
+    @abstractmethod
+    def remove_state_callback(self, callback: Callable[[Dict[str, Any]], None]):
+        """Remove state callback"""
+        pass
+
+
+class GameBridge(BaseBridge):
     """Bridge for communicating with L4D2 game server"""
     
     def __init__(self, host: str = "localhost", port: int = 27050, 
@@ -255,11 +306,19 @@ class GameBridge:
             self.state_callbacks.remove(callback)
 
 
-class MockBridge(GameBridge):
-    """Mock bridge for testing without game server"""
-    
+class MockBridge(BaseBridge):
+    """
+    Mock bridge for testing without game server.
+
+    DEPRECATED: Use SimulationBridge from simulation.py instead.
+    This class is kept for backward compatibility.
+    """
+
     def __init__(self):
-        super().__init__()
+        self.is_connected = False
+        self.running = False
+        self.state_callbacks: List[Callable] = []
+        self.game_state = {}
         self.mock_state = {
             "gameTime": 0.0,
             "roundTime": 0.0,
@@ -296,48 +355,54 @@ class MockBridge(GameBridge):
             "tankActive": False
         }
         self.simulation_thread = None
-    
+        logger.warning("MockBridge is deprecated. Use SimulationBridge instead.")
+
     def connect(self) -> bool:
         """Mock connection"""
         self.is_connected = True
         self.running = True
-        
+
         # Start simulation thread
         self.simulation_thread = threading.Thread(target=self._simulation_loop, daemon=True)
         self.simulation_thread.start()
-        
+
         logger.info("Connected to mock game server")
         return True
-    
+
+    def disconnect(self):
+        """Disconnect from mock server"""
+        self.running = False
+        self.is_connected = False
+
     def _simulation_loop(self):
         """Simulate game state changes"""
         while self.running:
             # Update time
             self.mock_state["gameTime"] = time.time()
             self.mock_state["roundTime"] += 0.1
-            
+
             # Simulate some changes
             if np.random.random() < 0.1:
-                self.mock_state["commonInfected"] = max(0, 
+                self.mock_state["commonInfected"] = max(0,
                     self.mock_state["commonInfected"] + np.random.randint(-2, 5))
-            
+
             if np.random.random() < 0.05:
                 idx = np.random.randint(0, 5)
-                self.mock_state["specialInfected"][idx] = max(0, 
+                self.mock_state["specialInfected"][idx] = max(0,
                     self.mock_state["specialInfected"][idx] + np.random.randint(-1, 2))
-            
+
             # Update survivors
             for survivor in self.mock_state["survivors"]:
                 if np.random.random() < 0.1:
                     # Random movement
                     survivor["position"][0] += np.random.randint(-10, 11)
                     survivor["position"][1] += np.random.randint(-10, 11)
-                
+
                 if np.random.random() < 0.05:
                     # Health change
-                    survivor["health"] = max(0, min(100, 
+                    survivor["health"] = max(0, min(100,
                         survivor["health"] + np.random.randint(-10, 5)))
-            
+
             # Notify callbacks
             self.game_state = self.mock_state.copy()
             for callback in self.state_callbacks:
@@ -345,12 +410,81 @@ class MockBridge(GameBridge):
                     callback(self.game_state)
                 except Exception:
                     pass
-            
+
             time.sleep(0.1)
-    
-    def _send_json(self, data: Dict[str, Any]):
-        """Mock send - just log"""
-        logger.debug(f"Mock sending: {data}")
+
+    def get_game_state(self) -> Optional[Dict[str, Any]]:
+        """Get current game state"""
+        return self.game_state.copy() if self.game_state else None
+
+    def send_director_command(self, command_type: str, parameters: Dict[str, Any]):
+        """Mock send director command"""
+        logger.debug(f"Mock director command: {command_type} with {parameters}")
+
+    def send_bot_action(self, bot_id: int, action: str, **kwargs):
+        """Mock send bot action"""
+        logger.debug(f"Mock bot action: {bot_id} -> {action}")
+
+    def reset_episode(self):
+        """Reset mock state"""
+        self.mock_state["roundTime"] = 0.0
+        self.mock_state["recentDeaths"] = 0
+
+    def add_state_callback(self, callback: Callable[[Dict[str, Any]], None]):
+        """Add state callback"""
+        self.state_callbacks.append(callback)
+
+    def remove_state_callback(self, callback: Callable[[Dict[str, Any]], None]):
+        """Remove state callback"""
+        if callback in self.state_callbacks:
+            self.state_callbacks.remove(callback)
+
+
+def create_bridge(
+    bridge_type: str = "game",
+    host: str = "localhost",
+    port: int = 27050,
+    protocol: str = "tcp",
+    simulation_config: Optional["SimulationConfig"] = None
+) -> Union[GameBridge, "SimulationBridge", MockBridge]:
+    """
+    Factory function to create appropriate bridge type.
+
+    Args:
+        bridge_type: Type of bridge - "game", "simulation", or "mock"
+        host: Host for game bridge
+        port: Port for game bridge
+        protocol: Protocol for game bridge ("tcp" or "udp")
+        simulation_config: Configuration for simulation bridge
+
+    Returns:
+        Appropriate bridge instance
+
+    Example:
+        # For live game connection
+        bridge = create_bridge("game", host="192.168.1.100", port=27050)
+
+        # For simulation testing
+        from simulation import SimulationConfig
+        config = SimulationConfig(max_duration=300.0)
+        bridge = create_bridge("simulation", simulation_config=config)
+
+        # For quick mock testing (deprecated)
+        bridge = create_bridge("mock")
+    """
+    if bridge_type == "game":
+        return GameBridge(host, port, protocol)
+    elif bridge_type == "simulation":
+        try:
+            from .simulation import SimulationBridge, SimulationConfig as SC
+        except ImportError:
+            from simulation import SimulationBridge, SimulationConfig as SC
+        return SimulationBridge(simulation_config or SC())
+    elif bridge_type == "mock":
+        logger.warning("MockBridge is deprecated. Consider using SimulationBridge.")
+        return MockBridge()
+    else:
+        raise ValueError(f"Unknown bridge type: {bridge_type}. Use 'game', 'simulation', or 'mock'.")
 
 
 # Import numpy for mock bridge

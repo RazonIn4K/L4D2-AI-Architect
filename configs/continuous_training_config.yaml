@@ -1,0 +1,112 @@
+# Continuous Training Configuration
+#
+# This file configures the continuous training system for L4D2-AI-Architect.
+# Adjust settings based on your training frequency and resource availability.
+
+# Data monitoring settings
+monitoring:
+  # Directory to watch for training data changes
+  data_dir: "data/processed"
+
+  # File patterns to monitor (glob patterns)
+  patterns:
+    - "combined_train.jsonl"
+    - "*_train.jsonl"
+    - "l4d2_train_*.jsonl"
+
+  # How often to check for changes (seconds)
+  check_interval: 300  # 5 minutes
+
+  # Minimum new examples to trigger training
+  min_new_examples: 100
+
+# Training triggers
+triggers:
+  # Trigger training when new data is detected
+  on_new_data: true
+
+  # Scheduled training interval (hours, 0 = disabled)
+  schedule_hours: 24
+
+  # Allow manual triggers via CLI
+  allow_manual: true
+
+# Version management
+versioning:
+  # Initial version if no history exists
+  initial_version: "1.0.0"
+
+  # Default bump type for auto-training (patch, minor, major)
+  default_bump: "patch"
+
+  # Bump minor version when examples increase by this percentage
+  minor_bump_threshold: 0.25  # 25% more data
+
+  # Bump major version manually or on breaking changes
+  require_manual_major: true
+
+# Model export settings
+export:
+  # Enable automatic GGUF export after training
+  auto_export: true
+
+  # Default quantization method
+  quantization: "q4_k_m"
+
+  # Export directory
+  output_dir: "exports"
+
+# Deployment settings
+deployment:
+  # Enable automatic Ollama deployment
+  auto_deploy: true
+
+  # Ollama model name prefix
+  model_prefix: "l4d2-code"
+
+  # API server URL for hot-reload (if running)
+  api_url: "http://localhost:8000"
+
+  # Enable API hot-reload on new deployment
+  api_hot_reload: true
+
+# Rollback settings
+rollback:
+  # Keep this many previous versions for rollback
+  keep_versions: 5
+
+  # Auto-rollback if new model performs worse (future feature)
+  auto_rollback: false
+
+# Notification settings (future feature)
+notifications:
+  # Enable notifications
+  enabled: false
+
+  # Notification methods
+  methods:
+    - console  # Always log to console
+    # - slack   # Slack webhook (configure webhook_url below)
+    # - email   # Email notifications (configure smtp settings)
+
+  # Slack webhook URL
+  # slack_webhook_url: "https://hooks.slack.com/services/..."
+
+  # Events to notify on
+  events:
+    - training_started
+    - training_completed
+    - training_failed
+    - deployment_completed
+    - rollback_triggered
+
+# Resource limits
+resources:
+  # Maximum concurrent training runs
+  max_concurrent: 1
+
+  # Training timeout (hours)
+  timeout_hours: 4
+
+  # Disk space warning threshold (GB)
+  disk_warning_gb: 50

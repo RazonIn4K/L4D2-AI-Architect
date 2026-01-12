@@ -1,0 +1,135 @@
+# Unsloth QLoRA Training Configuration - GH200 Optimized
+#
+# Optimized for NVIDIA GH200 (Grace Hopper) with 96GB HBM3 VRAM
+# Achieves ~2x throughput compared to A40 48GB configuration
+#
+# Effective batch size: 16 * 2 = 32 samples per update
+
+model:
+  # Base model - 4-bit quantized Mistral for efficient training
+  name: "unsloth/mistral-7b-instruct-v0.3-bnb-4bit"
+
+  # Double context length - GH200 has headroom
+  max_seq_length: 4096
+
+  # Auto-detect dtype (will use bf16 on Hopper)
+  dtype: null
+
+  # 4-bit quantization for memory efficiency
+  load_in_4bit: true
+
+lora:
+  # LoRA rank - higher for more capacity
+  r: 64
+
+  # LoRA alpha - typically 2x rank
+  lora_alpha: 128
+
+  # No dropout for faster training
+  lora_dropout: 0
+
+  # Target all attention and MLP layers
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+  bias: "none"
+
+  # Unsloth gradient checkpointing for memory efficiency
+  use_gradient_checkpointing: "unsloth"
+
+  # Rank-Stabilized LoRA for better training stability
+  use_rslora: true
+
+training:
+  # Training epochs
+  num_train_epochs: 3
+
+  # GH200 optimized: 4x batch size vs A40
+  # 96GB VRAM allows much larger batches
+  per_device_train_batch_size: 16
+
+  # Reduced gradient accumulation (still effective batch 32)
+  gradient_accumulation_steps: 2
+
+  # Learning rate with warmup
+  learning_rate: 2.0e-4
+  weight_decay: 0.01
+  warmup_steps: 50
+  lr_scheduler_type: "cosine"
+
+  # 8-bit AdamW optimizer
+  optim: "adamw_8bit"
+
+  # Use bfloat16 - native Hopper support
+  fp16: false
+  bf16: true
+
+  # Logging frequency
+  logging_steps: 10
+
+  # Checkpoint every 100 steps for preemption recovery
+  # Critical for cloud instances that may be interrupted
+  save_steps: 100
+  save_total_limit: 3
+
+  # Reproducibility
+  seed: 3407
+
+  # Gradient clipping for stability
+  max_grad_norm: 1.0
+
+data:
+  # Training data file (relative to data/processed/)
+  train_file: "combined_train.jsonl"
+
+  # Validation data file
+  val_file: "combined_val.jsonl"
+
+  # Use all samples (set to integer to limit)
+  max_samples: null
+
+output:
+  # Output directory for model adapters
+  dir: "l4d2-mistral-v10plus-lora"
+
+  # Push to HuggingFace Hub (set to true and configure hub_model_id)
+  push_to_hub: false
+  hub_model_id: null
+
+# GH200-specific optimizations
+advanced:
+  # Enable Flash Attention 2 for Hopper architecture
+  use_flash_attention_2: true
+
+  # Dataloader workers (GH200 has 72 CPU cores)
+  dataloader_num_workers: 8
+
+  # Pin memory for faster data transfer
+  dataloader_pin_memory: true
+
+  # Enable tf32 for faster matmul on Hopper
+  tf32: true
+
+# Monitoring
+monitoring:
+  # TensorBoard logging
+  report_to: "tensorboard"
+
+  # Log directory
+  logging_dir: "data/training_logs"
+
+  # Evaluation during training
+  evaluation_strategy: "steps"
+  eval_steps: 100
+
+# Expected performance on GH200 (96GB):
+# - Training speed: ~3-4x faster than RTX 4090
+# - Memory usage: ~60-70GB peak
+# - Throughput: ~500-600 tokens/sec
+# - Estimated time for 10k samples: ~1-2 hours

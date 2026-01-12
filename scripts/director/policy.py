@@ -6,13 +6,20 @@ Implements decision-making logic for the AI Director.
 Supports rule-based, RL-based, and hybrid modes.
 """
 
+import sys
 import numpy as np
 import logging
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import IntEnum
-import json
 from pathlib import Path
+
+# Add parent to path for security utils
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.security import safe_read_json
+
+# Project root for path validation
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 
 logger = logging.getLogger(__name__)
 
@@ -229,13 +236,63 @@ class RuleBasedPolicy:
 
 
 class RLBasedPolicy:
-    """RL-based director policy (placeholder for future implementation)"""
-    
+    """RL-based director policy using trained PPO model from Stable-Baselines3"""
+
+    # Action mapping from model output to director commands
+    ACTION_MAP = {
+        0: None,  # IDLE
+        1: ("spawn_common", {"count": 2}),      # SPAWN_COMMONS_LOW
+        2: ("spawn_common", {"count": 6}),      # SPAWN_COMMONS_MED
+        3: ("spawn_common", {"count": 12}),     # SPAWN_COMMONS_HIGH
+        4: ("spawn_special", {"type": "smoker"}),
+        5: ("spawn_special", {"type": "boomer"}),
+        6: ("spawn_special", {"type": "hunter"}),
+        7: ("spawn_special", {"type": "spitter"}),
+        8: ("spawn_special", {"type": "jockey"}),
+        9: ("spawn_witch", {}),
+        10: ("spawn_tank", {}),
+        11: ("trigger_panic", {}),
+        12: ("spawn_item", {"type": "medkit"}),
+        13: ("spawn_item", {"type": "molotov"}),
+        14: ("spawn_item", {"type": "ammo"}),
+    }
+
     def __init__(self, model_path: Optional[str] = None):
         self.model_path = model_path
-        # TODO: Load trained RL model
-        logger.warning("RL policy not implemented yet, using rule-based fallback")
+        self.model = None
+        self.difficulty_multiplier = 1.0
+        self._load_model(model_path)
+
+        # Fallback policy when model unavailable
         self.rule_policy = RuleBasedPolicy(self._get_default_config())
+
+    def _load_model(self, model_path: Optional[str]) -> None:
+        """Load trained PPO model from Stable-Baselines3 checkpoint."""
+        if not model_path:
+            logger.info("No RL model path provided, will use rule-based fallback")
+            return
+
+        model_file = Path(model_path)
+        if not model_file.exists():
+            # Try common extensions
+            for ext in [".zip", ""]:
+                candidate = Path(str(model_path) + ext)
+                if candidate.exists():
+                    model_file = candidate
+                    break
+
+        if not model_file.exists():
+            logger.warning(f"RL model not found at {model_path}, using rule-based fallback")
+            return
+
+        try:
+            from stable_baselines3 import PPO
+            self.model = PPO.load(str(model_file))
+            logger.info(f"Loaded RL director model from {model_file}")
+        except ImportError:
+            logger.warning("stable_baselines3 not installed, using rule-based fallback")
+        except Exception as e:
+            logger.error(f"Failed to load RL model: {e}, using rule-based fallback")
     
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default config for fallback"""
@@ -262,16 +319,78 @@ class RLBasedPolicy:
             }
         }
     
+    def _state_to_observation(self, state: Dict[str, Any]) -> np.ndarray:
+        """Convert game state dict to normalized observation vector for the model."""
+        survivors = state.get("survivors", [])
+        if survivors:
+            healths = [s.get("health", 0) + s.get("tempHealth", 0) for s in survivors]
+            avg_health = np.mean(healths)
+            min_health = min(healths)
+            incapped = sum(1 for s in survivors if s.get("incapped", False))
+            dead = sum(1 for s in survivors if s.get("dead", False))
+        else:
+            avg_health, min_health, incapped, dead = 100, 100, 0, 0
+
+        specials = state.get("special_infected", [0, 0, 0, 0, 0])
+
+        return np.array([
+            state.get("stress_level", 0.0),                           # avg_stress
+            avg_health / 100.0,                                       # avg_health
+            min_health / 100.0,                                       # min_health
+            min(incapped, 4) / 4.0,                                   # players_incapped
+            min(dead, 4) / 4.0,                                       # players_dead
+            min(state.get("common_infected", 0), 50) / 50.0,          # common_count
+            min(sum(specials), 8) / 8.0,                              # special_count
+            min(state.get("witch_count", 0), 3) / 3.0,                # witch_count
+            float(state.get("tank_count", 0) > 0),                    # tank_active
+            float(state.get("panic_active", False)),                  # panic_active
+            min(state.get("items_available", 0), 20) / 20.0,          # items_available
+            min(state.get("health_packs_used", 0), 10) / 10.0,        # health_packs_used
+            state.get("flow_progress", 0.0),                          # flow_progress
+            min(state.get("game_time", 0), 1800) / 1800.0,            # time_since_start
+            min(state.get("recent_kills", 0), 20) / 20.0,             # recent_kills
+            min(state.get("recent_damage_taken", 0), 200) / 200.0,    # recent_damage_taken
+        ], dtype=np.float32)
+
     def decide(self, state: Dict[str, Any], metrics: Dict[str, Any]) -> List[DirectorAction]:
-        """Make decisions using RL model"""
-        # TODO: Implement RL inference
-        # For now, fallback to rule-based
-        return self.rule_policy.decide(state, metrics)
-    
+        """Make decisions using RL model with fallback to rule-based policy."""
+        if self.model is None:
+            return self.rule_policy.decide(state, metrics)
+
+        try:
+            obs = self._state_to_observation(state)
+            action, _ = self.model.predict(obs, deterministic=False)
+            action_idx = int(action)
+
+            action_def = self.ACTION_MAP.get(action_idx)
+            if action_def is None:
+                return []  # IDLE action
+
+            action_type, params = action_def
+
+            # Apply difficulty multiplier to spawn counts
+            if action_type == "spawn_common" and "count" in params:
+                params = dict(params)
+                params["count"] = max(1, int(params["count"] * self.difficulty_multiplier))
+
+            return [DirectorAction(
+                action_type=action_type,
+                parameters=params,
+                priority=5 if action_type in ("spawn_tank", "trigger_panic") else 3,
+                reason=f"RL policy action {action_idx}"
+            )]
+
+        except Exception as e:
+            logger.warning(f"RL inference failed: {e}, using rule-based fallback")
+            return self.rule_policy.decide(state, metrics)
+
     def update_difficulty(self, difficulty: float):
-        """Update policy difficulty"""
-        # TODO: Adjust RL policy parameters
-        pass
+        """
+        Adjust RL policy behavior via difficulty multiplier.
+        Higher difficulty increases spawn counts and reduces item drops.
+        """
+        self.difficulty_multiplier = max(0.5, min(2.0, difficulty))
+        logger.debug(f"RL policy difficulty multiplier set to {self.difficulty_multiplier}")
 
 
 class HybridPolicy:
@@ -318,10 +437,9 @@ class DirectorPolicy:
     def __init__(self, mode: DirectorMode, config_path: Optional[str] = None):
         self.mode = mode
         
-        # Load configuration
+        # Load configuration using secure file reading
         if config_path and Path(config_path).exists():
-            with open(config_path, 'r') as f:
-                self.config = json.load(f)
+            self.config = safe_read_json(config_path, PROJECT_ROOT)
         else:
             self.config = self._get_default_config()
         

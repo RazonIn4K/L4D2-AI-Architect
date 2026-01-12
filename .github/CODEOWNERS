@@ -1,0 +1,22 @@
+# CODEOWNERS - Define code ownership for automatic review requests
+#
+# Each line is a file pattern followed by one or more owners.
+# Order matters - later patterns override earlier ones.
+
+# Default owner for everything
+* @RazonIn4K
+
+# Training scripts and configs
+/scripts/training/ @RazonIn4K
+/configs/ @RazonIn4K
+
+# RL training
+/scripts/rl_training/ @RazonIn4K
+
+# Security-critical files
+/scripts/utils/security.py @RazonIn4K
+/.github/workflows/ @RazonIn4K
+
+# Documentation
+*.md @RazonIn4K
+/docs/ @RazonIn4K
