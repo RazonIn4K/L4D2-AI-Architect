@@ -45,7 +45,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -140,7 +140,7 @@ jobs:
     if: (github.event_name == 'push' && contains(github.ref, 'v')) || (github.event_name == 'workflow_dispatch' && inputs.include_gguf)
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Check for existing GGUF exports
         id: check-gguf
@@ -221,7 +221,7 @@ jobs:
       notes: ${{ steps.notes.outputs.notes }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
