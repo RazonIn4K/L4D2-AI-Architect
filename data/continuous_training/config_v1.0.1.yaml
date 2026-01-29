@@ -1,0 +1,43 @@
+data:
+  max_samples: null
+  train_file: combined_train.jsonl
+  val_file: combined_val.jsonl
+lora:
+  bias: none
+  lora_alpha: 64
+  lora_dropout: 0
+  r: 32
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - up_proj
+  - down_proj
+  use_gradient_checkpointing: unsloth
+  use_rslora: false
+model:
+  dtype: null
+  load_in_4bit: true
+  max_seq_length: 2048
+  name: unsloth/mistral-7b-instruct-v0.3-bnb-4bit
+output:
+  dir: l4d2-code-v1.0.1
+  hub_model_id: null
+  push_to_hub: false
+training:
+  bf16: true
+  fp16: false
+  gradient_accumulation_steps: 4
+  learning_rate: 0.0002
+  logging_steps: 10
+  lr_scheduler_type: linear
+  num_train_epochs: 3
+  optim: adamw_8bit
+  per_device_train_batch_size: 4
+  save_steps: 100
+  save_total_limit: 3
+  seed: 3407
+  warmup_steps: 10
+  weight_decay: 0.01

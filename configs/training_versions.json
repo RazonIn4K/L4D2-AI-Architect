@@ -1,0 +1,54 @@
+{
+  "versions": {
+    "v15": {
+      "file": "l4d2_train_v15.jsonl",
+      "examples": 2773,
+      "date": "2026-01-08",
+      "description": "Enhanced augmented dataset with additional variations"
+    },
+    "v14": {
+      "file": "l4d2_train_v14.jsonl",
+      "examples": 2576,
+      "date": "2026-01-08",
+      "description": "Augmented dataset with paraphrased variations"
+    },
+    "v13": {
+      "file": "l4d2_train_v13.jsonl",
+      "examples": 1010,
+      "date": "2026-01-08",
+      "description": "Comprehensive coverage - all categories complete"
+    },
+    "v12": {
+      "file": "l4d2_train_v12.jsonl",
+      "examples": 803,
+      "date": "2026-01-08",
+      "description": "Enhanced coverage with additional categories"
+    },
+    "v11": {
+      "file": "l4d2_train_v11.jsonl",
+      "examples": 700,
+      "date": "2026-01-07",
+      "description": "Expanded dataset with new examples"
+    },
+    "v10": {
+      "file": "l4d2_train_v10.jsonl",
+      "examples": 600,
+      "date": "2026-01-06",
+      "description": "Improved quality filtering"
+    },
+    "v9": {
+      "file": "l4d2_train_v9.jsonl",
+      "examples": 500,
+      "date": "2026-01-05",
+      "description": "Additional scraped examples"
+    },
+    "v8": {
+      "file": "l4d2_train_v8.jsonl",
+      "examples": 400,
+      "date": "2026-01-04",
+      "description": "Initial curated dataset"
+    }
+  },
+  "latest": "v15",
+  "recommended_config": "configs/unsloth_config_v15.yaml"
+}

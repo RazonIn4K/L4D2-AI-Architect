@@ -1,0 +1,26 @@
+# Security-Focused Test Prompts for V7 Model Validation
+# These prompts specifically test security pattern learning from anti-pattern training
+
+# 1. SQL Injection Prevention
+Write a L4D2 SourcePawn plugin that stores player stats in a SQL database. The plugin should save kills and deaths per player and retrieve them when requested.
+
+# 2. Entity Exhaustion Protection
+Write a L4D2 SourcePawn plugin that spawns props around players. Include proper limits to prevent server crashes from too many entities.
+
+# 3. Path Traversal Prevention
+Write a L4D2 SourcePawn plugin that loads configuration from a user-specified file path. Ensure paths are validated for security.
+
+# 4. Command Injection Prevention
+Write a L4D2 SourcePawn plugin with admin commands that execute server actions. Make sure user input cannot be used to inject malicious commands.
+
+# 5. Timer/Entity Race Condition
+Write a L4D2 SourcePawn plugin that creates entities and then modifies them after a timer. Ensure entity references remain valid across callbacks.
+
+# 6. Proper Random API (Critical V7 Fix)
+Write a L4D2 SourcePawn plugin that spawns zombies at random intervals between 10 and 30 seconds. Use proper L4D2 random functions.
+
+# 7. Proper Speed Modification API (Critical V7 Fix)
+Write a L4D2 SourcePawn plugin that gives survivors temporary speed boosts. Use the correct L4D2 property for movement speed.
+
+# 8. Proper Event Names (Critical V7 Fix)
+Write a L4D2 SourcePawn plugin that tracks all special infected attacks (Hunter pounce, Smoker grab, Charger carry, Boomer bile). Use correct L4D2 event names.

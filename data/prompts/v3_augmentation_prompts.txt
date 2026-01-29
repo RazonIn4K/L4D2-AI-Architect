@@ -1,0 +1,82 @@
+# V3 Training Data Augmentation Prompts
+# Use with: python scripts/inference/l4d2_codegen.py batch data/prompts/v3_augmentation_prompts.txt
+
+# === SPECIAL INFECTED MECHANICS ===
+Write a SourcePawn plugin that detects when a Boomer explodes and counts how many survivors were hit by bile
+Create a plugin that plays a custom sound when a Hunter pounces on a survivor
+Write a SourceMod plugin that tracks Smoker tongue grab duration and announces the longest grab each round
+Create a plugin that spawns a Charger behind the last survivor in the group every 3 minutes
+Write a plugin that increases Jockey ride damage based on how long the ride lasts
+Create a SourcePawn plugin that makes Spitter acid pools last 50% longer
+Write a plugin that announces when a Tank is at 25%, 50%, and 75% health remaining
+Create a plugin that gives survivors temporary god mode for 2 seconds after being freed from a Hunter
+
+# === SURVIVOR MECHANICS ===
+Write a plugin that automatically heals survivors to full health when they enter a saferoom
+Create a SourcePawn plugin that prevents survivors from using medkits until they are below 40 health
+Write a plugin that gives survivors bonus movement speed when carrying a gnome
+Create a plugin that tracks which survivor has dealt the most damage to Tanks
+Write a SourceMod plugin that allows survivors to drop their primary weapon with a console command
+Create a plugin that heals nearby survivors when a player uses a first aid kit
+Write a plugin that announces when a survivor picks up a defibrilator
+Create a plugin that prevents survivors from picking up duplicate weapons
+
+# === GAME EVENTS ===
+Write a plugin that triggers a panic event when survivors stay in one area too long
+Create a SourcePawn plugin that spawns extra zombies during finale events
+Write a plugin that reduces infected spawn rates when survivors are in a saferoom
+Create a plugin that announces the total time taken to complete each chapter
+Write a SourceMod plugin that tracks how many times the rescue vehicle has been called
+Create a plugin that plays a victory sound when all survivors reach the saferoom
+Write a plugin that spawns a random special infected when the last generator is started
+Create a plugin that announces the percentage of the map explored by survivors
+
+# === SCORING AND STATS ===
+Write a plugin that tracks and displays survivor accuracy statistics
+Create a SourcePawn plugin that maintains a leaderboard of most Tank kills across rounds
+Write a plugin that awards bonus points for headshot kills
+Create a plugin that tracks friendly fire incidents and displays a shame counter
+Write a SourceMod plugin that calculates and displays team efficiency score
+Create a plugin that tracks revive counts per player per campaign
+Write a plugin that announces MVP at the end of each round based on damage dealt
+Create a plugin that penalizes score for team kills
+
+# === ADMIN AND UTILITY ===
+Write a plugin that allows admins to spawn any special infected with a command
+Create a SourcePawn plugin that teleports all survivors to a target survivor
+Write a plugin that allows admins to adjust infected spawn rates in real-time
+Create a plugin that logs all player deaths with location and cause
+Write a SourceMod plugin that automatically kicks AFK players after 2 minutes
+Create a plugin that displays server rules when players join
+Write a plugin that allows admins to give any weapon to any player
+Create a plugin that saves and restores player positions on disconnect/reconnect
+
+# === TIMERS AND INTERVALS ===
+Write a plugin that spawns a witch every 7 minutes with countdown warnings
+Create a SourcePawn plugin that gives all survivors adrenaline effect every 5 minutes
+Write a plugin that triggers a mini-horde every 2 minutes in survival mode
+Create a plugin that displays remaining time until next special infected spawn
+Write a SourceMod plugin that implements a cooldown system for medkit usage
+Create a plugin that announces time elapsed since round start every 5 minutes
+Write a plugin that spawns supply crates at random locations every 10 minutes
+Create a plugin that implements a wave-based survival mode with increasing difficulty
+
+# === EFFECTS AND FEEDBACK ===
+Write a plugin that creates a screen shake effect when a Tank spawns nearby
+Create a SourcePawn plugin that displays damage numbers above hurt enemies
+Write a plugin that plays a heartbeat sound when survivors are below 30 health
+Create a plugin that creates a visual effect when survivors are healed
+Write a SourceMod plugin that announces critical hits with a special sound
+Create a plugin that displays a kill feed with weapon icons
+Write a plugin that shows a warning indicator when special infected are nearby
+Create a plugin that creates a glow effect on survivors who need healing
+
+# === VERSUS MODE ===
+Write a plugin that balances teams based on player skill ratings
+Create a SourcePawn plugin that prevents ghost infected from spawning too close to survivors
+Write a plugin that tracks and displays infected team damage per round
+Create a plugin that implements a pick/ban system for special infected classes
+Write a SourceMod plugin that shows distance remaining to saferoom for both teams
+Create a plugin that announces when infected team has all players ready to spawn
+Write a plugin that prevents survivors from rushing too far ahead of teammates
+Create a plugin that implements overtime rules for close versus matches

@@ -1,0 +1,130 @@
+======================================================================================
+L4D2 SOURCEPAWN MODEL COMPARISON REPORT
+Generated: 2026-01-06 (Updated with V5 results)
+======================================================================================
+
+┌────────────────────────┬────────────────────────┬────────────────────────┬────────────────────────┐
+│ Metric                 │ OpenAI v3              │ OpenAI v5              │ Qwen + LoRA            │
+│                        │ (GPT-4o-mini FT)       │ (w/ anti-patterns)     │ (7B FP16)              │
+├────────────────────────┼────────────────────────┼────────────────────────┼────────────────────────┤
+│ Pass Rate              │ 7/10 (70.0%)           │ 6/10 (60.0%)           │ 7/10 (70.0%)           │
+│ Average Score          │ 9.50/10                │ 7.4-8.4/10             │ 8.90/10                │
+│ Expected APIs Found    │ 9/18 (50.0%)           │ 15/18 (83.3%)          │ 10/18 (55.6%)          │
+│ Wrong APIs Avoided     │ 12/15 (80.0%)          │ 14/15 (93.3%)          │ 12/15 (80.0%)          │
+│ Model ID               │ CvCbPQjr               │ CvEmBuMm               │ LoRA adapter           │
+└────────────────────────┴────────────────────────┴────────────────────────┴────────────────────────┘
+
+RESULT: V5 shows improved API recognition (83% vs 50%) but lower pass rate (60% vs 70%)
+        due to stricter semantic validation and persistent RandomFloat wrapper issues.
+
+======================================================================================
+DETAILED TEST RESULTS (V5 - Latest)
+======================================================================================
+
+┌────────────────┬──────────────┬──────────────┬──────────────────────────────────────────────────────────────────────────────────────┐
+│ Test           │ OpenAI v3    │ OpenAI v5    │ Notes                                                                                │
+├────────────────┼──────────────┼──────────────┼──────────────────────────────────────────────────────────────────────────────────────┤
+│ speed_boost    │ 10.0 PASS    │ 10.0 PASS    │ V5: All expected APIs found (m_flLaggedMovementValue, player_death, GetClientUserId) │
+│ no_ff_panic    │  5.0 FAIL    │ VAR  FAIL    │ V5: Expected APIs found but validator fails intermittently                           │
+│ kill_tracker   │ 10.0 PASS    │ 10.0 PASS    │ V5: infected_death, HookEvent found correctly                                        │
+│ saferoom_heal  │ 10.0 PASS    │  5.0 FAIL    │ V5: Missing player_entered_checkpoint, SetEntityHealth                               │
+│ tank_announce  │ 10.0 PASS    │ 10.0 PASS    │ V5: tank_spawn, PrintToChatAll found correctly                                       │
+│ hunter_pounce  │ 10.0 FAIL*   │ 10.0 PASS    │ V5 IMPROVED: Now uses correct "lunge_pounce" event!                                  │
+│ bile_tracker   │ 10.0 PASS    │ 10.0 PASS    │ V5 IMPROVED: Now finds player_now_it correctly                                       │
+│ smoker_grab    │ 10.0 PASS    │ 10.0 PASS    │ V5 IMPROVED: Now finds tongue_grab correctly                                         │
+│ charger_carry  │ 10.0 PASS    │ VAR  FAIL    │ V5: charger_carry_start found but validator fails intermittently                     │
+│ random_timer   │ 10.0 FAIL*   │  9.0 FAIL*   │ V5 STILL FAILS: Creates RandomFloat wrapper instead of using GetRandomFloat directly │
+└────────────────┴──────────────┴──────────────┴──────────────────────────────────────────────────────────────────────────────────────┘
+
+* FAIL due to forbidden patterns - high structural score but using wrong L4D2 APIs
+VAR = Variable results due to model stochasticity
+
+CORRECTED Pass/Fail Logic:
+  Pass = validator_pass AND forbidden_patterns_count == 0
+  This ensures L4D2-specific API correctness, not just "compilable SourcePawn"
+
+======================================================================================
+METHODOLOGY
+======================================================================================
+
+Prompt template:
+  System: You are an expert SourcePawn and VScript developer for Left 4 Dead 2
+          SourceMod plugins. Write clean, well-documented code with proper error
+          handling. Use correct L4D2 APIs and events.
+  User: <test prompt from scripts/evaluation/automated_test.py>
+
+Temperature: 0.3
+Evaluation harness: scripts/evaluation/validate_generated_code.py
+Pass threshold: Validator PASS status AND forbidden_found == 0
+
+Validator scoring (0-10 scale):
+  - Structural checks: #pragma directives, includes, Plugin myinfo, OnPluginStart
+  - API correctness: Event hooks, timer usage, entity properties
+  - Code completeness: Return statements, error handling, length requirements
+
+Pattern accuracy metrics:
+  - Expected APIs: 18 total across 10 tests (L4D2-specific events, functions)
+  - Forbidden APIs: 15 total (common misconceptions like RandomFloat, pounce)
+
+======================================================================================
+ANALYSIS (CORRECTED)
+======================================================================================
+
+OpenAI GPT-4o-mini Fine-tuned (v3):
+  + Higher average score (9.50 vs 8.90)
+  + Better code structure consistency
+  - 70% pass rate (down from inflated 80%)
+  - Uses wrong L4D2 events (pounce instead of lunge_pounce)
+  - Requires API calls (~$0.002-0.004 per generation)
+
+Qwen2.5-Coder-7B + L4D2 LoRA:
+  + Runs locally (no API costs after training)
+  + Same corrected pass rate as OpenAI (70%)
+  + Slightly better expected API recognition (55.6% vs 50%)
+  - Uses wrong L4D2 functions (RandomFloat instead of GetRandomFloat)
+  - Requires ~14GB RAM for FP16 inference
+
+ROOT CAUSE IDENTIFIED:
+  The v3 training data was contaminated with 34 examples containing wrong patterns:
+    - 13x TakeDamage() instead of SDKHooks_TakeDamage()
+    - 7x RandomFloat() instead of GetRandomFloat()
+    - 2x smoker_tongue_grab instead of tongue_grab
+    - Plus other hallucinated events and functions
+
+  Both models learned BOTH correct and incorrect patterns, leading to inconsistent output.
+
+V4 TRAINING DATA CREATED:
+  - Removed 34 contaminated examples
+  - Added 22 high-quality anti-pattern examples
+  - Final: 584 training + 65 eval examples
+  - Files: data/openai_finetune/train_v4.jsonl, eval_v4.jsonl
+
+RECOMMENDATION:
+  1. Retrain both models with cleaned v4 dataset
+  2. Expected improvement: 80-90% pass rate with L4D2 API correctness
+  3. Use OpenAI for production (cost-effective via fine-tuning)
+  4. Use Qwen for local development/testing
+
+======================================================================================
+TRAINING DETAILS
+======================================================================================
+
+OpenAI Model:
+  ID: ft:gpt-4o-mini-2024-07-18:highencodelearning:l4d2-v3-complete:CvCbPQjr
+  Training samples: 661
+  Validation samples: 70
+
+Qwen Model:
+  Base: Qwen2.5-Coder-7B-Instruct
+  Adapter: LoRA (r=64, alpha=128)
+  Training samples: 661
+  Training time: 7:59 on Vultr A100
+
+======================================================================================
+RESULTS FILES
+======================================================================================
+
+OpenAI: data/test_results_openai_20260106_203937.json
+Qwen:   data/test_results_qwen_20260106_203938.json
+
+======================================================================================
