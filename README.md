@@ -25,25 +25,28 @@ This repository leverages **Python 3.10+**, **PyTorch**, **Unsloth** for efficie
     ```
 2.  **Set up Virtual Environment:**
 
+3.  **Set up Virtual Environment:**
+
     ```bash
-    python3 -m venv venv
+    make setup
     source venv/bin/activate
-    pip install -r requirements.txt
     ```
 
-3.  **Collect Data:**
+4.  **Collect Data:**
+
+5.  **Collect Data:**
 
     ```bash
     # Scrape GitHub SourceMod plugins
-    python scripts/scrapers/scrape_github_plugins.py --max-repos 500
+    make scrape-github
 
     # Scrape Valve Wiki
-    python scripts/scrapers/scrape_valve_wiki.py
+    make scrape-wiki
     ```
 
-4.  **Prepare Dataset:**
+6.  **Prepare Dataset:**
     ```bash
-    python scripts/training/prepare_dataset.py --input data/raw --output data/processed
+    make process-data
     ```
 
 ## ☁️ Cloud / Server Deployment
